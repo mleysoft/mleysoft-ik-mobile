@@ -1,0 +1,12 @@
+MleySoft IK - Google Play Release Signing
+
+Package Name : com.mleysoft.ik
+Key Alias    : mleysoft
+Keystore     : signing\mleysoft-release-key.jks
+SHA1: 10:03:B1:90:F9:DC:2B:F3:38:37:98:0E:DE:FD:7D:C3:EC:B1:F1:E0
+SHA256: 12:AA:86:77:B6:74:AE:2E:5F:9B:1A:D6:A2:45:13:F0:25:34:75:24:9B:EE:27:CC:07:EC:1D:1D:CE:15:FA:A6
+
+ONEMLI:
+- mleysoft-release-key.jks dosyasini guvenli bir yerde yedekleyin.
+- key.properties dosyasini ve sifrelerinizi kimseyle paylasmayin.
+- Bu anahtari kaybetmeyin. Sonraki uygulama guncellemelerinde gerekecektir.

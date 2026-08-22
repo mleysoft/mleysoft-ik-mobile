@@ -130,7 +130,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/login', method: 'POST', data: {
       'email': email,
       'password': password,
-      'device_name': 'Flutter Native V96',
+      'device_name': 'Flutter Native V98',
     });
     await api.saveToken(r['token']);
     await api.storage.write(key:'session_mode',value:'admin');
@@ -165,7 +165,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/reset-password', method: 'POST', data: {
       'token': resetToken,
       'password': newPassword,
-      'device_name': 'Flutter Native V96',
+      'device_name': 'Flutter Native V98',
     });
     await api.saveToken(r['token']);
     user = Map<String, dynamic>.from(r['user']);

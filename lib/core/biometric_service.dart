@@ -48,9 +48,6 @@ class BiometricService {
           sensitiveTransaction: false,
         ),
       );
-    } on LocalAuthException catch (e, st) {
-      debugPrint('LocalAuthException: ${e.code} ${e.description}\n$st');
-      return false;
     } catch (e, st) {
       debugPrint('Biometric authentication failed: $e\n$st');
       return false;

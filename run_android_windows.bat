@@ -5,7 +5,7 @@ cd /d "%~dp0"
 if "%API_BASE_URL%"=="" set "API_BASE_URL=https://mleysoft.com/system/ik"
 if "%DEVICE_ID%"=="" set "DEVICE_ID=emulator-5554"
 
-call "%~dp0prepare_android_v90.bat"
+call "%~dp0prepare_android_v98.bat"
 if errorlevel 1 goto :fail
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0native_config\cleanup_media_permissions.ps1"
 if errorlevel 1 goto :fail
