@@ -1,9 +1,0 @@
-MleySoft IK Native V45
-- V44 PowerShell parse hatasi tamamen kaldirildi.
-- Android platformu ilk calistirmada sifirdan Flutter ile olusturulur; eski V43/V44 Gradle kalintilari kullanilmaz.
-- android.newDsl / android.builtInKotlin ayarlarina artik dokunulmaz.
-- Flutter'in guncel Android/Kotlin/AGP sablonu aynen korunur.
-- Sadece flutter_local_notifications icin core library desugaring eklenir.
-- local_auth icin MainActivity FlutterFragmentActivity olarak ayarlanir.
-- Gerekli Android izinlari otomatik kontrol edilir.
-- run_android_windows.bat ilk kurulum ve calistirmayi tek komutta yapar.

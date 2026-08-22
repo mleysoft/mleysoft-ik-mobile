@@ -1,6 +1,0 @@
-MleySoft İK Native V61
-- Android/iOS zorunlu ilk sistem splash ekranı tamamen logosuz beyaz yapıldı.
-- Android 12+ splash ikonu şeffaf ve animationDuration=0; uygulamanın kendi Flutter bekleme ekranına çok daha hızlı geçer.
-- V60 yeşil MleySoft İK ikonu büyütülerek Android Adaptive Icon yapısına geçirildi.
-- ic_launcher ve ic_launcher_round tanımlandı; Pixel/Android launcher'ın ikonu beyaz daire içine küçük koyması engellendi.
-- iOS AppIcon V60 ikon tasarımını korur; LaunchScreen logosuz beyazdır.

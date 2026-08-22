@@ -1,9 +1,0 @@
-MleySoft İK V68
-- Personelin ilk QR okutması vardiya başlangıç saati + toleransı geçtiyse puantaj otomatik Geç Giriş olarak kaydedilir.
-- QR API cevabı da bu durumda late_entry aksiyonu ve geç kalma dakikasını döndürür.
-- Web Günlük Puantajda Geç Giriş veya Erken Çıkış seçilince sayfa ortasında zorunlu saat popupı açılır.
-- Geç Giriş popupı gerçek giriş saatini; Erken Çıkış popupı gerçek çıkış saatini ister.
-- Girilen saat vardiya ve toleransa göre geç kalma / erken çıkış süresini otomatik hesaplar.
-- Webde saat popupından vazgeçilirse önceki puantaj seçimi geri yüklenir.
-- Mobil yönetici Puantaj ekranında Geç Giriş / Erken Çıkış seçilince 24 saat formatında saat seçim penceresi açılır.
-- Manuel Erken Çıkış kaydı yapılırken varsa mevcut giriş saati korunur; Manuel Geç Giriş kaydında varsa mevcut çıkış saati korunur.

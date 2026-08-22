@@ -1,7 +1,0 @@
-MleySoft İK V74
-- Mobil Tanımlar > Vardiyalar ekranındaki Yeni Vardiya Çalışması / Geçici Vardiya Aktar popup kodu yeniden yazıldı.
-- settings.dart satır 110'daki parantez/sözdizimi hatası giderildi.
-- Vardiya seçim popupı okunabilir çok satırlı Flutter widget yapısına çevrildi.
-- Tarih değiştiğinde uygun personel listesi yeniden yüklenir ve eski seçimler temizlenir.
-- Uygun personel yoksa açıklayıcı boş durum mesajı gösterilir.
-- Vardiyalar ExpansionTile bölümündeki karmaşık tek satırlı widget yapısı da düzenlendi.

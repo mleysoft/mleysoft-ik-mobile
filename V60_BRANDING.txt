@@ -1,8 +1,0 @@
-MleySoft IK Native V60 Branding
-- Android ve iOS uygulama ikonu: kullanicinin verdigi yesil/siyah MleySoft IK ikonu.
-- Android launcher tum density boyutlari bu ikondan uretilmistir.
-- iOS AppIcon.appiconset tum iPhone/iPad/App Store boyutlari bu ikondan uretilmistir.
-- Uygulama ilk native acilis ekrani: beyaz arka plan + kullanicinin verdigi yatay orijinal MleySoft logosu.
-- Android 12+ sistem splash'i launcher ikonu yerine yatay MleySoft logosunu gosterecek sekilde ayarlanmistir.
-- Flutter ilk acilis ve gecis bekleme ekranlarinda da ayni yatay orijinal MleySoft logosu kullanilir.
-- Eski yuvarlak MG/IK splash gorseli kullanilmaz.

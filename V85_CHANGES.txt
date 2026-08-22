@@ -1,3 +1,0 @@
-MleySoft İK Mobil V85
-- QR başarı animasyonu mobil kamera ekranından kaldırıldı; başarı bilgisi giriş noktasındaki web QR ekranında gösterilir.
-- V84 mobil vardiya çalışma/geçici aktarım ekleme özellikleri korunur.
