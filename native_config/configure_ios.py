@@ -109,4 +109,28 @@ if info_plist.exists():
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK uygulama adi, ikon ve minimal sistem splash ayarlari uygulandi.")
+
+# V91: App Store Bundle ID ve iOS izin metinleri.
+pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
+if pbx.exists():
+    t = pbx.read_text(encoding="utf-8")
+    import re
+    t = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;", "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;", t)
+    pbx.write_text(t, encoding="utf-8")
+    verify = pbx.read_text(encoding="utf-8")
+    if "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;" not in verify:
+        raise SystemExit("iOS Bundle ID com.mleysoft.ik olarak ayarlanamadi.")
+
+if info_plist.exists():
+    with info_plist.open("rb") as f:
+        info = plistlib.load(f)
+    info["NSCameraUsageDescription"] = "MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır."
+    info["NSPhotoLibraryUsageDescription"] = "MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir."
+    info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, konum gerektiren özelliklerde konum bilginizi yalnızca uygulamayı kullanırken kullanır."
+    info["NSFaceIDUsageDescription"] = "MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir."
+    info["CFBundleDisplayName"] = "MleySoft İK"
+    info["CFBundleName"] = "MleySoft İK"
+    with info_plist.open("wb") as f:
+        plistlib.dump(info, f, sort_keys=False)
+
+print("iOS MleySoft İK V92: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")

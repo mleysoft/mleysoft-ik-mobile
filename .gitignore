@@ -1,52 +1,5 @@
-# ================================
-# MleySoft IK - Flutter Git Ignore
-# ================================
 
-# Flutter / Dart
-.dart_tool/
-.packages
-.pub/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-
-# IDE
-.idea/
-*.iml
-.vscode/
-
-# Local JDK
-.jdk/
-
-# Android build/cache
-android/.gradle/
-android/app/build/
-android/build/
-android/local.properties
-
-# Android release signing - PRIVATE
-signing/
-*.jks
-*.keystore
-key.properties
-android/key.properties
-
-# iOS generated files
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/ephemeral/
-ios/Flutter/Generated.xcconfig
-ios/Flutter/flutter_export_environment.sh
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
-desktop.ini
-
-# Logs / temporary files
-*.log
-*.tmp
-*.temp
+# Google Play release signing - private
+signing/*.jks
+signing/key.properties
+signing/*.keystore
