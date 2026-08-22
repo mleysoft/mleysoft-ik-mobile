@@ -1,0 +1,17 @@
+<!-- V39 additions to ios/Runner/Info.plist -->
+<key>NSFaceIDUsageDescription</key>
+<string>MleySoft İK hesabınızı Face ID ile güvenli şekilde açmak için kullanılır.</string>
+<key>NSCameraUsageDescription</key>
+<string>Personel işlemlerinde belge veya görsel eklemek için kamera erişimi gerekir.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Personel işlemlerinde belge veya görsel seçmek için fotoğraf arşivi erişimi gerekir.</string>
+
+<key>UIBackgroundModes</key>
+<array>
+  <string>fetch</string>
+  <string>processing</string>
+</array>
+<key>BGTaskSchedulerPermittedIdentifiers</key>
+<array>
+  <string>mleysoft.dailyHrCheck</string>
+</array>

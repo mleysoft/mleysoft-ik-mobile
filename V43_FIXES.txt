@@ -1,0 +1,9 @@
+MleySoft IK Native V43
+
+- flutter_local_notifications icin Android core library desugaring otomatik aktif edilir.
+- desugar_jdk_libs 2.1.4 otomatik dependencies alanina eklenir.
+- local_auth icin MainActivity otomatik FlutterFragmentActivity yapilir.
+- INTERNET, USE_BIOMETRIC, POST_NOTIFICATIONS, CAMERA ve READ_MEDIA_IMAGES izinleri AndroidManifest'e otomatik eklenir.
+- run_android_windows.bat artik android platformu eksikse kendisi olusturur ve native ayarlari otomatik uygular.
+- bootstrap_platforms_windows.bat manuel dosya duzenleme istemez.
+- build_android_windows.bat release APK/AAB oncesi ayni Android kontrollerini uygular.

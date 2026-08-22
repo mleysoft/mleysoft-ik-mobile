@@ -1,0 +1,22 @@
+MleySoft IK Native V56
+
+Giris ekranindaki 'API endpoint bulunamadi' hatasinin nedeni:
+run_android_windows.bat API_BASE_URL olarak zaten
+    https://mleysoft.com/system/ik/api/v1
+veriyordu.
+
+ApiClient ise buna tekrar
+    /api/v1/
+ekliyordu.
+
+Sonuc olarak login istegi yanlis adrese gidiyordu:
+    /system/ik/api/v1/api/v1/auth/login
+
+V56:
+- ApiClient base URL'yi normalize eder.
+- API_BASE_URL site kokunu (/system/ik), /api veya /api/v1 icerse de dogru calisir.
+- run/build BAT varsayilani:
+    https://mleysoft.com/system/ik
+- Dogru login endpoint:
+    https://mleysoft.com/system/ik/api/v1/auth/login
+- API health version V56 olarak guncellendi.

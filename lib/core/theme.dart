@@ -1,0 +1,5 @@
+import 'package:flutter/material.dart';
+class MTheme {
+ static const ink=Color(0xFF17212B), lime=Color(0xFFC8F000), bg=Color(0xFFF3F5F6), muted=Color(0xFF78838D);
+ static ThemeData get light=>ThemeData(useMaterial3:true,fontFamily:'Arial',scaffoldBackgroundColor:bg,colorScheme:ColorScheme.fromSeed(seedColor:ink,primary:ink,secondary:lime,surface:Colors.white),appBarTheme:const AppBarTheme(backgroundColor:ink,foregroundColor:Colors.white,centerTitle:false),cardTheme:const CardThemeData(elevation:0,margin:EdgeInsets.zero),inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:Color(0xFFDDE3E7))),enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:Color(0xFFDDE3E7))),contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:13)),filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(backgroundColor:ink,foregroundColor:Colors.white,padding:const EdgeInsets.symmetric(horizontal:16,vertical:14),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(11)))));
+}

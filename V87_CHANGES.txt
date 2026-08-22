@@ -1,0 +1,38 @@
+MleySoft İK V87
+
+GOOGLE PLAY RELEASE SIGNING DÜZELTMESİ
+- V86'da release build, signingConfigs.getByName("debug") ile imzalanıyordu.
+- Bu nedenle Google Play "Hata ayıklama modunda imzalanmış APK/AAB" hatası veriyordu.
+- V87'de debug signing release build'den tamamen kaldırıldı.
+- Gerçek release signingConfig eklendi.
+- Paket adı: com.mleysoft.ik
+- Sürüm: 1.6.5+87
+
+YENİ ARAÇLAR
+- setup_playstore_signing.bat
+  İlk kullanımda güvenli release JKS anahtarı oluşturur.
+  Şifreyi kullanıcıdan iki kez ister.
+  Anahtar yolu: mobile_app\signing\mleysoft-release-key.jks
+  Özellikler: RSA 2048-bit, 10000 gün geçerlilik, alias=mleysoft.
+
+- build_playstore_aab.bat
+  Google Play'e yüklenecek release-imzalı AAB üretir:
+  mobile_app\dist\MleySoft-IK-V87-playstore.aab
+
+- build_android_windows.bat
+  Artık hem release-imzalı APK hem de Play Store AAB üretir:
+  mobile_app\dist\MleySoft-IK-V87-release.apk
+  mobile_app\dist\MleySoft-IK-V87-playstore.aab
+  AAB imzasını jarsigner ile otomatik doğrular.
+
+GÜVENLİK
+- signing/*.jks ve signing/key.properties .gitignore'a eklendi.
+- JKS ve key.properties dosyaları Android platformu yeniden oluşturulsa bile silinmez,
+  çünkü mobile_app\signing klasöründe tutulur.
+- Release anahtarı kaybedilmemelidir; sonraki güncellemelerde gereklidir.
+
+İLK KULLANIM
+1. mobile_app klasöründe setup_playstore_signing.bat çalıştırın.
+2. En az 8 karakterli bir release şifresi belirleyin ve güvenli yerde saklayın.
+3. build_playstore_aab.bat çalıştırın.
+4. dist\MleySoft-IK-V87-playstore.aab dosyasını Google Play Console'a yükleyin.

@@ -1,0 +1,5 @@
+MleySoft İK Mobil V84
+- Yeni Vardiya Çalışması ekleme düzeltildi ve yeniden tasarlandı.
+- Geçici Vardiya Aktarımı ekleme düzeltildi ve yeniden tasarlandı.
+- QR kamera başarılı okumada yeşil ekran + onay işareti gösterir.
+- Personel adı, işlem türü, giriş/çıkış saatleri 3 saniye görünür.
