@@ -165,6 +165,8 @@ class _AccountScreenState extends State<AccountScreen> {
                 actionTile(Icons.gavel_outlined, 'KVKK Aydınlatma', 'Kişisel verilerin korunması metni', () => openWeb('kvkk.php')),
                 const Divider(),
                 actionTile(Icons.description_outlined, 'Kullanım Koşulları', 'Uygulama kullanım şartları', () => openWeb('terms.php')),
+                const Divider(),
+                actionTile(Icons.delete_forever_outlined, 'Hesap Silme Sayfası', 'Web üzerinden hesap ve veri silme talebi', () => openWeb('hesap-silme.php')),
               ])),
               if (!widget.state.isSuper) ...[
                 const SizedBox(height: 16),

@@ -133,8 +133,8 @@ if pbx.exists():
     t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.example.mleysoft_ik;",
                   "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
 
-    # Xcode build settings de App Store/TestFlight adını değiştirmesin.
-    t = re.sub(r'PRODUCT_NAME = [^;]+;', 'PRODUCT_NAME = "MleySoft İK";', t)
+    # PRODUCT_NAME is intentionally left as Runner. App name comes from Info.plist.
+    # Keeping the generated Xcode product name avoids altering the signed bundle product.
     if 'INFOPLIST_KEY_CFBundleDisplayName' in t:
         t = re.sub(r'INFOPLIST_KEY_CFBundleDisplayName = [^;]+;', 'INFOPLIST_KEY_CFBundleDisplayName = "MleySoft İK";', t)
 
@@ -173,4 +173,4 @@ if info_plist.exists():
     if verify_info.get("CFBundleName") != "MleySoft İK":
         raise SystemExit("V96 ERROR: CFBundleName is not MleySoft İK.")
 
-print("V96 VERIFY OK: iOS icon + display name + bundle id configured.")
+print("V99 VERIFY OK: iOS icon + display name + bundle id configured; PRODUCT_NAME preserved for signing.")
