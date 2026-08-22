@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo ========================================================
-echo  MleySoft IK V96 - ANDROID + IOS NATIVE BRANDING
+echo  MleySoft IK V100 - ANDROID + IOS NATIVE BRANDING
 echo ========================================================
 
 where flutter >nul 2>nul
@@ -27,7 +27,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File native_config\configure_andr
 if errorlevel 1 exit /b 1
 
 echo.
-echo V96 hazir.
+echo V100 hazir.
 echo Bundle ID / package : com.mleysoft.ik
 echo Uygulama adi        : MleySoft IK
 echo Build               : 95

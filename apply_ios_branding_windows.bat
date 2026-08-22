@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo.
 echo ========================================================
-echo  MleySoft IK V94 - iOS BRANDING / TESTFLIGHT HAZIRLIK
+echo  MleySoft IK V100 - iOS BRANDING / TESTFLIGHT HAZIRLIK
 echo ========================================================
 
 where flutter >nul 2>nul
@@ -43,7 +43,7 @@ if not exist "ios\Runner\Assets.xcassets\AppIcon.appiconset\Icon-App-1024x1024@1
 )
 
 echo.
-echo V94 iOS hazir.
+echo V100 iOS hazir.
 echo Bundle ID : com.mleysoft.ik
 echo Uygulama   : MleySoft IK
 echo App icon   : MleySoft ozel ikon

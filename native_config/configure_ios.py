@@ -105,7 +105,7 @@ if info_plist.exists():
     with info_plist.open("rb") as f:
         info = plistlib.load(f)
     info["CFBundleDisplayName"] = "MleySoft \u0130K"
-    info["CFBundleName"] = "MleySoft \u0130K"
+    info["CFBundleName"] = "Runner"
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
@@ -133,8 +133,12 @@ if pbx.exists():
     t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.example.mleysoft_ik;",
                   "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
 
-    # PRODUCT_NAME is intentionally left as Runner. App name comes from Info.plist.
-    # Keeping the generated Xcode product name avoids altering the signed bundle product.
+    # V100: Signed product name MUST remain Runner.
+    # Older builds accidentally changed PRODUCT_NAME to "MleySoft İK", which caused
+    # Payload/MleySoft İK.app and App Store ITMS-90034 signature rejection.
+    # Force every build configuration back to Runner while keeping the user-visible
+    # home-screen name in CFBundleDisplayName.
+    t = re.sub(r'PRODUCT_NAME = [^;]+;', 'PRODUCT_NAME = Runner;', t)
     if 'INFOPLIST_KEY_CFBundleDisplayName' in t:
         t = re.sub(r'INFOPLIST_KEY_CFBundleDisplayName = [^;]+;', 'INFOPLIST_KEY_CFBundleDisplayName = "MleySoft İK";', t)
 
@@ -153,11 +157,11 @@ if info_plist.exists():
     info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, konum gerektiren özelliklerde konum bilginizi yalnızca uygulamayı kullanırken kullanır."
     info["NSFaceIDUsageDescription"] = "MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir."
     info["CFBundleDisplayName"] = "MleySoft İK"
-    info["CFBundleName"] = "MleySoft İK"
+    info["CFBundleName"] = "Runner"
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK V94: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
+print("iOS MleySoft İK V100: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
 
 
 # V94 hard verification: App Store branding must not fall back to Flutter defaults.
@@ -170,7 +174,7 @@ if info_plist.exists():
         verify_info = plistlib.load(f)
     if verify_info.get("CFBundleDisplayName") != "MleySoft İK":
         raise SystemExit("V96 ERROR: CFBundleDisplayName is not MleySoft İK.")
-    if verify_info.get("CFBundleName") != "MleySoft İK":
-        raise SystemExit("V96 ERROR: CFBundleName is not MleySoft İK.")
+    if verify_info.get("CFBundleName") != "Runner":
+        raise SystemExit("V100 ERROR: CFBundleName is not Runner.")
 
-print("V99 VERIFY OK: iOS icon + display name + bundle id configured; PRODUCT_NAME preserved for signing.")
+print("V100 VERIFY OK: Runner product name + MleySoft İK display name + bundle id configured.")

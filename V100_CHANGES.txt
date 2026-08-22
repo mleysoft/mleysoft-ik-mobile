@@ -1,0 +1,12 @@
+MleySoft İK V100 – iOS ITMS-90034 Signing Fix
+
+- iOS signed product name is forcibly restored to Runner in every Xcode build configuration.
+- CFBundleName = Runner.
+- CFBundleDisplayName = MleySoft İK.
+- Bundle ID = com.mleysoft.ik.
+- This restores the same signed bundle structure used in the previously working TestFlight build: Payload/Runner.app.
+- Removes the accidental Payload/MleySoft İK.app structure that began after PRODUCT_NAME was changed.
+- Existing icons, Face ID, notifications, Android NDK 28.2.13676358 and account deletion page are preserved.
+- Version 1.6.11, Build 99.
+
+Before pushing to GitHub on Windows run: mobile_app\fix_ios_signing_v100.bat
