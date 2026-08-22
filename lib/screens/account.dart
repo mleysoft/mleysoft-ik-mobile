@@ -120,10 +120,20 @@ class _AccountScreenState extends State<AccountScreen> {
                   subtitle: const Text('Face ID / Touch ID / parmak izi'),
                   onChanged: (v) async {
                     try {
-                      await widget.state.setBiometricEnabled(v);
-                      if (mounted) snack(context, v ? 'Biyometrik giriş etkinleştirildi.' : 'Biyometrik giriş kapatıldı.');
+                      if (!v) {
+                        await widget.state.setBiometricEnabled(false);
+                        if (mounted) snack(context, 'Biyometrik giriş kapatıldı.');
+                        return;
+                      }
+                      final supported = await widget.state.biometric.isSupported();
+                      if (!supported) {
+                        if (mounted) snack(context, 'Bu cihazda Face ID / Touch ID kullanılamıyor veya cihazda biyometri tanımlı değil.', error: true);
+                        return;
+                      }
+                      await widget.state.setBiometricEnabled(true);
+                      if (mounted) snack(context, 'Biyometrik giriş etkinleştirildi.');
                     } catch (e) {
-                      if (mounted) snack(context, '$e', error: true);
+                      if (mounted) snack(context, 'Biyometrik giriş açılamadı. $e', error: true);
                     }
                   },
                 ),
@@ -133,10 +143,16 @@ class _AccountScreenState extends State<AccountScreen> {
                 actionTile(Icons.notifications_active_outlined, 'Bildirim İzni', 'Uygulama bildirimlerini kontrol edin', () async {
                   final ok = await NotificationService.instance.requestPermission();
                   if (ok) {
-                    await NotificationService.instance.showTest();
-                    if (mounted) snack(context, 'Bildirim izni hazır. Test bildirimi gönderildi.');
+                    final sent = await NotificationService.instance.showTest();
+                    if (mounted) {
+                      snack(
+                        context,
+                        sent ? 'Test bildirimi gönderildi.' : 'Bildirim izni açık ancak test bildirimi gösterilemedi.',
+                        error: !sent,
+                      );
+                    }
                   } else if (mounted) {
-                    snack(context, 'Bildirim izni verilmedi.', error: true);
+                    snack(context, 'Bildirim izni verilmedi. iPhone Ayarlar > Bildirimler > MleySoft İK bölümünü kontrol edin.', error: true);
                   }
                 }),
               ])),

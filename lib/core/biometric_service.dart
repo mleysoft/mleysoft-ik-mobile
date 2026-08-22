@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -9,8 +10,11 @@ class BiometricService {
 
   Future<bool> isSupported() async {
     try {
-      return await auth.isDeviceSupported() && await auth.canCheckBiometrics;
-    } catch (_) {
+      final supported = await auth.isDeviceSupported();
+      if (!supported) return false;
+      return (await auth.getAvailableBiometrics()).isNotEmpty;
+    } catch (e, st) {
+      debugPrint('Biometric support check failed: $e\n$st');
       return false;
     }
   }
@@ -33,16 +37,27 @@ class BiometricService {
 
   Future<bool> authenticate({String reason = 'MleySoft İK hesabınıza giriş yapın'}) async {
     try {
+      if (!await auth.isDeviceSupported()) return false;
+      if ((await auth.getAvailableBiometrics()).isEmpty) return false;
       return await auth.authenticate(
         localizedReason: reason,
         options: const AuthenticationOptions(
           biometricOnly: true,
-          stickyAuth: true,
+          stickyAuth: false,
           useErrorDialogs: true,
+          sensitiveTransaction: false,
         ),
       );
-    } catch (_) {
+    } on LocalAuthException catch (e, st) {
+      debugPrint('LocalAuthException: ${e.code} ${e.description}\n$st');
+      return false;
+    } catch (e, st) {
+      debugPrint('Biometric authentication failed: $e\n$st');
       return false;
     }
+  }
+
+  Future<void> stopAuthentication() async {
+    try { await auth.stopAuthentication(); } catch (_) {}
   }
 }

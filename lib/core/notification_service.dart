@@ -38,13 +38,22 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
     ),
-    iOS: DarwinNotificationDetails(),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      interruptionLevel: InterruptionLevel.active,
+    ),
   );
 
   Future<void> initialize() async {
     if (initialized) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings();
+    const ios = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
     try {
       await plugin.initialize(
@@ -201,9 +210,20 @@ class NotificationService {
     return true;
   }
 
-  Future<void> showTest() async {
+  Future<bool> showTest() async {
     await initialize();
-    await plugin.show(5800, 'MleySoft İK', 'Mobil bildirimler çalışıyor.', _details);
+    try {
+      if (Platform.isIOS) {
+        final ios = plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        final granted = await ios?.requestPermissions(alert: true, badge: true, sound: true);
+        if (granted != true) return false;
+      }
+      await plugin.show(5800, 'MleySoft İK', 'Test bildirimi başarıyla oluşturuldu.', _details);
+      return true;
+    } catch (e, st) {
+      debugPrint('Test notification error: $e\n$st');
+      return false;
+    }
   }
 
   String _apiRoot(String value) {

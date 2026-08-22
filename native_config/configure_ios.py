@@ -133,6 +133,11 @@ if pbx.exists():
     t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.example.mleysoft_ik;",
                   "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
 
+    # Xcode build settings de App Store/TestFlight adını değiştirmesin.
+    t = re.sub(r'PRODUCT_NAME = [^;]+;', 'PRODUCT_NAME = "MleySoft İK";', t)
+    if 'INFOPLIST_KEY_CFBundleDisplayName' in t:
+        t = re.sub(r'INFOPLIST_KEY_CFBundleDisplayName = [^;]+;', 'INFOPLIST_KEY_CFBundleDisplayName = "MleySoft İK";', t)
+
     pbx.write_text(t, encoding="utf-8")
     verify = pbx.read_text(encoding="utf-8")
     if "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;" not in verify:
@@ -158,14 +163,14 @@ print("iOS MleySoft İK V94: com.mleysoft.ik + App Store privacy izinleri + ikon
 # V94 hard verification: App Store branding must not fall back to Flutter defaults.
 required_icon = appicon / "Icon-App-1024x1024@1x.png"
 if not required_icon.exists() or required_icon.stat().st_size < 1000:
-    raise SystemExit("V94 ERROR: iOS App Store icon could not be installed.")
+    raise SystemExit("V96 ERROR: iOS App Store icon could not be installed.")
 
 if info_plist.exists():
     with info_plist.open("rb") as f:
         verify_info = plistlib.load(f)
     if verify_info.get("CFBundleDisplayName") != "MleySoft İK":
-        raise SystemExit("V94 ERROR: CFBundleDisplayName is not MleySoft İK.")
+        raise SystemExit("V96 ERROR: CFBundleDisplayName is not MleySoft İK.")
     if verify_info.get("CFBundleName") != "MleySoft İK":
-        raise SystemExit("V94 ERROR: CFBundleName is not MleySoft İK.")
+        raise SystemExit("V96 ERROR: CFBundleName is not MleySoft İK.")
 
-print("V94 VERIFY OK: iOS icon + display name + bundle id configured.")
+print("V96 VERIFY OK: iOS icon + display name + bundle id configured.")

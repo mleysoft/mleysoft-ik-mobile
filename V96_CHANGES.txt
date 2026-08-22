@@ -1,0 +1,10 @@
+MleySoft İK V96
+- Yeni ikon Android/iOS tüm launcher ve App Store boyutlarına uygulandı.
+- Header solunda yeni ikon kullanılıyor.
+- iOS görünen ad MleySoft İK olarak CFBundleDisplayName / CFBundleName / PRODUCT_NAME seviyesinde sabitlendi.
+- iOS Bundle ID ve Android package: com.mleysoft.ik
+- Face ID / biyometrik giriş çökmesine karşı güvenli destek kontrolü eklendi.
+- iOS test bildirimi foreground alert/sound/badge ile düzeltildi.
+- Tanım Yönetimi mobil tasarımı yeniden düzenlendi.
+- Alt menü ikonları kaliteli outline/selected ikon setiyle yenilendi.
+- Build: 95

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mleysoft Ik</string>
+	<string>MleySoft İK</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mleysoft_ik</string>
+	<string>MleySoft İK</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -54,11 +54,11 @@
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>NSCameraUsageDescription</key>
-	<string>MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodları okutmak için kamerayı kullanır.</string>
+	<string>MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MleySoft İK, kullanıcı tarafından seçilen profil ve belge görsellerine erişmek için fotoğraf arşivini kullanır.</string>
+	<string>MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>MleySoft İK, uygulamanın konum gerektiren özelliklerinde kullanıcının konumunu yalnızca uygulama kullanımdayken kullanır.</string>
+	<string>MleySoft İK, konum gerektiren özelliklerde konum bilginizi yalnızca uygulamayı kullanırken kullanır.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -72,5 +72,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir.</string>
 </dict>
 </plist>

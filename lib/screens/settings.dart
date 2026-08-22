@@ -634,104 +634,197 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _iso(DateTime d)=>'${d.year.toString().padLeft(4,'0')}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+  Widget _definitionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    Widget? trailing,
+    bool expanded = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: MTheme.line),
+        boxShadow: MTheme.softShadow,
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: expanded,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(color: MTheme.limeSoft, borderRadius: BorderRadius.circular(13)),
+            child: Icon(icon, color: MTheme.ink, size: 21),
+          ),
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+          subtitle: Text(subtitle, style: const TextStyle(fontSize: 10.5, color: MTheme.muted)),
+          trailing: trailing,
+          children: [child],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (defs == null) return const Center(child: CircularProgressIndicator());
     final off = (defs!['weekly_off_days'] as List).map((x) => dayLabels[int.tryParse('$x')] ?? '$x').join(', ');
+    final regularWorks = shiftWorks.where((x) => x['assignment_type'] == 'regular').toList();
+    final temporaryWorks = shiftWorks.where((x) => x['assignment_type'] == 'temporary').toList();
+
     return RefreshIndicator(
       onRefresh: load,
-      child: ListView(padding: const EdgeInsets.all(12), children: [
-        const Text('Tanım Yönetimi', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 10),
-        Card(child: ListTile(leading: const Icon(Icons.calendar_view_week_outlined), title: const Text('Hafta Tatilleri'), subtitle: Text(off.isEmpty ? 'Tanımlı değil' : off), trailing: const Icon(Icons.edit_outlined), onTap: editWeeklyOff)),
-        Card(
-          child: ExpansionTile(
-            title: const Text('Firma Tanımları'),
-            subtitle: const Text('Birincil ve ek firmalar'),
-            trailing: IconButton(onPressed: () => addOrEditBusinessUnit(), icon: const Icon(Icons.add_business_outlined)),
-            children: [
-              ...((defs!['business_units'] as List? ?? []).map((x) => ListTile(
-                leading: CircleAvatar(child: Text('${x['name']}'.isEmpty ? '?' : '${x['name']}'[0])),
-                title: Row(children: [
-                  Expanded(child: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700))),
-                  if ('${x['is_primary']}' == '1') const Chip(label: Text('Birincil', style: TextStyle(fontSize: 9))),
-                ]),
-                subtitle: Text('${x['unit_no'] ?? ''} · ${x['status'] == 'active' ? 'Aktif' : 'Pasif'}'),
-                trailing: IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => addOrEditBusinessUnit(x)),
-              ))),
-            ],
-          ),
-        ),
-        Card(child: ExpansionTile(title: const Text('Departmanlar'), trailing: IconButton(onPressed: () => add('department'), icon: const Icon(Icons.add)), children: (defs!['departments'] as List).map((x) => ListTile(title: Text('${x['name']}'), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('department', x)))).toList())),
-        Card(child: ExpansionTile(title: const Text('Görev / Ünvanlar'), trailing: IconButton(onPressed: () => add('position'), icon: const Icon(Icons.add)), children: (defs!['positions'] as List).map((x) => ListTile(title: Text('${x['name']}'), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('position', x)))).toList())),
-        Card(
-          child: ExpansionTile(
-            title: const Text('Vardiyalar'),
-            trailing: IconButton(
-              onPressed: addShift,
-              icon: const Icon(Icons.add),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [MTheme.ink, MTheme.ink2]),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: MTheme.softShadow,
             ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => newShiftWork(),
-                      icon: const Icon(Icons.groups_outlined),
-                      label: const Text('Yeni Vardiya Çalışması'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => newShiftWork(temporary: true),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Geçici Aktar'),
-                    ),
-                  ],
-                ),
-              ),
-              ...(defs!['shifts'] as List? ?? []).map(
-                (x) => ListTile(
-                  title: Text('${x['name']}'),
-                  subtitle: Text(
-                    '${('${x['start_time']}').substring(0, 5)} - '
-                    '${('${x['end_time']}').substring(0, 5)} · '
-                    '${x['tolerance_minutes']} dk tolerans',
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => removeShift(x),
+            child: const Row(
+              children: [
+                Icon(Icons.tune_rounded, color: MTheme.lime, size: 30),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tanım Yönetimi', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                      SizedBox(height: 3),
+                      Text('Firma, departman, görev, hafta tatili ve vardiya yapılandırmaları', style: TextStyle(color: Colors.white60, fontSize: 10.5)),
+                    ],
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          TechCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: MTheme.limeSoft, borderRadius: BorderRadius.circular(13)),
+                child: const Icon(Icons.calendar_view_week_outlined, color: MTheme.ink),
               ),
-            ],
+              title: const Text('Hafta Tatilleri', style: TextStyle(fontWeight: FontWeight.w900)),
+              subtitle: Text(off.isEmpty ? 'Henüz seçim yapılmadı' : off),
+              trailing: IconButton(onPressed: editWeeklyOff, icon: const Icon(Icons.edit_outlined)),
+            ),
           ),
-        ),
-        Card(
-          child: ExpansionTile(
-            initiallyExpanded: true,
-            title: const Text('Aktif / Planlı Vardiya Kayıtları'),
-            subtitle: Text('${shiftWorks.where((x) => x['assignment_type'] == 'regular').length} çalışma'),
-            children: [
-              if (shiftWorks.where((x) => x['assignment_type'] == 'regular').isEmpty)
-                const Padding(padding: EdgeInsets.all(16), child: Text('Kayıtlı vardiya çalışması bulunmuyor.')),
-              ...shiftWorks.where((x) => x['assignment_type'] == 'regular').map((x) => _shiftWorkCard(x, temporary: false)),
-            ],
+          const SizedBox(height: 12),
+          _definitionCard(
+            icon: Icons.apartment_rounded,
+            title: 'Firma Tanımları',
+            subtitle: 'Birincil ve ek firmalarınızı yönetin',
+            trailing: IconButton(onPressed: () => addOrEditBusinessUnit(), icon: const Icon(Icons.add_business_rounded)),
+            child: Column(
+              children: [
+                ...((defs!['business_units'] as List? ?? []).map((x) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(14), border: Border.all(color: MTheme.line)),
+                  child: ListTile(
+                    leading: CircleAvatar(backgroundColor: MTheme.ink, foregroundColor: MTheme.lime, child: Text('${x['name']}'.isEmpty ? '?' : '${x['name']}'[0])),
+                    title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text('${x['unit_no'] ?? ''} · ${x['status'] == 'active' ? 'Aktif' : 'Pasif'}'),
+                    trailing: IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => addOrEditBusinessUnit(x)),
+                  ),
+                ))),
+              ],
+            ),
           ),
-        ),
-        Card(
-          child: ExpansionTile(
-            title: const Text('Geçici Vardiya Aktarımları'),
-            subtitle: Text('${shiftWorks.where((x) => x['assignment_type'] == 'temporary').length} kayıt'),
-            children: [
-              if (shiftWorks.where((x) => x['assignment_type'] == 'temporary').isEmpty)
-                const Padding(padding: EdgeInsets.all(16), child: Text('Geçici vardiya aktarımı bulunmuyor.')),
-              ...shiftWorks.where((x) => x['assignment_type'] == 'temporary').map((x) => _shiftWorkCard(x, temporary: true)),
-            ],
+          _definitionCard(
+            icon: Icons.account_tree_outlined,
+            title: 'Departmanlar',
+            subtitle: '${(defs!['departments'] as List).length} departman tanımlı',
+            trailing: IconButton(onPressed: () => add('department'), icon: const Icon(Icons.add_circle_outline)),
+            child: Column(
+              children: (defs!['departments'] as List).map((x) => Container(
+                margin: const EdgeInsets.only(bottom: 7),
+                decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('department', x))),
+              )).toList(),
+            ),
           ),
-        ),
-      ]),
+          _definitionCard(
+            icon: Icons.workspace_premium_outlined,
+            title: 'Görev / Ünvanlar',
+            subtitle: '${(defs!['positions'] as List).length} görev veya ünvan tanımlı',
+            trailing: IconButton(onPressed: () => add('position'), icon: const Icon(Icons.add_circle_outline)),
+            child: Column(
+              children: (defs!['positions'] as List).map((x) => Container(
+                margin: const EdgeInsets.only(bottom: 7),
+                decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('position', x))),
+              )).toList(),
+            ),
+          ),
+          _definitionCard(
+            icon: Icons.schedule_rounded,
+            title: 'Vardiyalar',
+            subtitle: '${(defs!['shifts'] as List? ?? []).length} vardiya tanımı',
+            expanded: true,
+            trailing: IconButton(onPressed: addShift, icon: const Icon(Icons.add_circle_outline)),
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(color: MTheme.limeSoft, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFDCE9A0))),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(onPressed: () => newShiftWork(), icon: const Icon(Icons.groups_2_outlined), label: const Text('Yeni Vardiya Çalışması')),
+                      OutlinedButton.icon(onPressed: () => newShiftWork(temporary: true), icon: const Icon(Icons.swap_horiz_rounded), label: const Text('Geçici Aktar')),
+                    ],
+                  ),
+                ),
+                ...(defs!['shifts'] as List? ?? []).map((x) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(13), border: Border.all(color: MTheme.line)),
+                  child: ListTile(
+                    leading: const Icon(Icons.schedule_outlined, color: MTheme.ink),
+                    title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text('${('${x['start_time']}').substring(0, 5)} - ${('${x['end_time']}').substring(0, 5)} · ${x['tolerance_minutes']} dk tolerans'),
+                    trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => removeShift(x)),
+                  ),
+                )),
+              ],
+            ),
+          ),
+          _definitionCard(
+            icon: Icons.playlist_add_check_circle_outlined,
+            title: 'Aktif / Planlı Vardiya Kayıtları',
+            subtitle: '${regularWorks.length} çalışma',
+            expanded: true,
+            child: Column(children: [
+              if (regularWorks.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('Kayıtlı vardiya çalışması bulunmuyor.', style: TextStyle(color: MTheme.muted))),
+              ...regularWorks.map((x) => _shiftWorkCard(x, temporary: false)),
+            ]),
+          ),
+          _definitionCard(
+            icon: Icons.swap_horizontal_circle_outlined,
+            title: 'Geçici Vardiya Aktarımları',
+            subtitle: '${temporaryWorks.length} kayıt',
+            child: Column(children: [
+              if (temporaryWorks.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('Geçici vardiya aktarımı bulunmuyor.', style: TextStyle(color: MTheme.muted))),
+              ...temporaryWorks.map((x) => _shiftWorkCard(x, temporary: true)),
+            ]),
+          ),
+        ],
+      ),
     );
   }
 }

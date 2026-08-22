@@ -32,12 +32,22 @@ class _AppShellState extends State<AppShell> {
   ];
   final labels = ['Giriş', 'Personel', 'Puantaj', 'İzin', 'Maaş', 'Rapor', 'Tanımlar'];
   final icons = [
-    Icons.space_dashboard_outlined,
-    Icons.groups_2_outlined,
+    Icons.dashboard_customize_outlined,
+    Icons.badge_outlined,
     Icons.fact_check_outlined,
-    Icons.beach_access_outlined,
+    Icons.event_available_outlined,
     Icons.account_balance_wallet_outlined,
-    Icons.query_stats_outlined,
+    Icons.analytics_outlined,
+    Icons.tune_outlined,
+  ];
+
+  final selectedIcons = [
+    Icons.dashboard_customize_rounded,
+    Icons.badge_rounded,
+    Icons.fact_check_rounded,
+    Icons.event_available_rounded,
+    Icons.account_balance_wallet_rounded,
+    Icons.analytics_rounded,
     Icons.tune_rounded,
   ];
 
@@ -52,7 +62,20 @@ class _AppShellState extends State<AppShell> {
           toolbarHeight: 68,
           titleSpacing: 16,
           title: Row(children: [
-            Container(width: 38, height: 38, decoration: BoxDecoration(color: MTheme.lime, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.hub_outlined, color: MTheme.ink, size: 21)),
+            Container(
+              width: 40,
+              height: 40,
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 8, offset: Offset(0, 2))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset('assets/images/mleysoft-ik-app-icon.png', fit: BoxFit.cover),
+              ),
+            ),
             const SizedBox(width: 11),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('MleySoft İK', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
@@ -110,7 +133,19 @@ class _AppShellState extends State<AppShell> {
               setState(() => index = i);
             },
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: List.generate(labels.length, (i) => NavigationDestination(icon: Icon(icons[i]), label: labels[i])),
+            destinations: List.generate(
+              labels.length,
+              (i) => NavigationDestination(
+                icon: Icon(icons[i]),
+                selectedIcon: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(color: MTheme.lime, borderRadius: BorderRadius.circular(11)),
+                  child: Icon(selectedIcons[i], color: MTheme.ink, size: 21),
+                ),
+                label: labels[i],
+              ),
+            ),
           ),
         ),
       );
