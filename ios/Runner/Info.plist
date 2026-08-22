@@ -53,6 +53,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSCameraUsageDescription</key>
+	<string>MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodları okutmak için kamerayı kullanır.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MleySoft İK, kullanıcı tarafından seçilen profil ve belge görsellerine erişmek için fotoğraf arşivini kullanır.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MleySoft İK, uygulamanın konum gerektiren özelliklerinde kullanıcının konumunu yalnızca uygulama kullanımdayken kullanır.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
