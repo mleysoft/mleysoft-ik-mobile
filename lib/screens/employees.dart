@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../core/app_state.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
@@ -56,6 +57,158 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     if (changed == true) load();
   }
 
+
+  Future<bool> _newAdvance(BuildContext parentContext, Map<String, dynamic> employee) async {
+    final amount = TextEditingController();
+    DateTime advanceDate = DateTime.now();
+    String type = 'single';
+    String method = 'salary';
+    String strategy = 'parallel';
+    int count = 2;
+    int startYear = DateTime.now().year;
+    int startMonth = DateTime.now().month;
+    bool saved = false;
+
+    await showModalBottomSheet(
+      context: parentContext,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setM) => Padding(
+          padding: EdgeInsets.only(left: 16, right: 16, top: 6, bottom: MediaQuery.viewInsetsOf(c).bottom + 16),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const TechSectionHeader(title: 'Yeni Avans Ekle', subtitle: 'Personel detayından hızlı avans kaydı'),
+              const SizedBox(height: 12),
+              TechCard(
+                child: Row(children: [
+                  CircleAvatar(backgroundColor: MTheme.ink, foregroundColor: MTheme.lime, child: Text('${employee['first_name']}'.isEmpty ? '?' : '${employee['first_name']}'[0])),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('${employee['first_name']} ${employee['last_name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text('${employee['employee_no'] ?? ''}', style: const TextStyle(fontSize: 10.5, color: MTheme.muted)),
+                  ])),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: InkWell(
+                  onTap: () async { final d = await pickDate(c, advanceDate); if (d != null) setM(() => advanceDate = d); },
+                  child: InputDecorator(decoration: const InputDecoration(labelText: 'Avans Tarihi', suffixIcon: Icon(Icons.calendar_month_outlined)), child: Text(DateFormat('dd.MM.yyyy').format(advanceDate))),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Avans Tutarı'))),
+              ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: DropdownButtonFormField<String>(
+                  value: type,
+                  decoration: const InputDecoration(labelText: 'Avans Türü'),
+                  items: const [DropdownMenuItem(value: 'single', child: Text('Tek Avans')), DropdownMenuItem(value: 'installment', child: Text('Taksitli Avans'))],
+                  onChanged: (v) => setM(() => type = v ?? 'single'),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: DropdownButtonFormField<String>(
+                  value: method,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Ödeme Yöntemi'),
+                  items: const [DropdownMenuItem(value: 'salary', child: Text('Maaştan Kesilecek', overflow: TextOverflow.ellipsis)), DropdownMenuItem(value: 'manual', child: Text('Diğer Ödeme'))],
+                  onChanged: (v) => setM(() => method = v ?? 'salary'),
+                )),
+              ]),
+              if (type == 'installment') ...[
+                const SizedBox(height: 10),
+                TextFormField(initialValue: '$count', keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Taksit Sayısı'), onChanged: (v) => count = (int.tryParse(v) ?? 2).clamp(2, 120).toInt()),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: strategy,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Mevcut Taksit Varsa'),
+                  items: const [
+                    DropdownMenuItem(value: 'parallel', child: Text('Mevcut aylık taksite ekle')),
+                    DropdownMenuItem(value: 'after_existing', child: Text('Önceki borç bittikten sonra başlat')),
+                  ],
+                  onChanged: (v) => setM(() => strategy = v ?? 'parallel'),
+                ),
+              ],
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  int y = startYear, m = startMonth;
+                  await showDialog(
+                    context: c,
+                    builder: (d) => StatefulBuilder(
+                      builder: (d, setD) => AlertDialog(
+                        title: const Text('Kesinti Başlangıç Dönemi'),
+                        content: Row(children: [
+                          Expanded(child: DropdownButtonFormField<int>(
+                            value: m,
+                            decoration: const InputDecoration(labelText: 'Ay'),
+                            items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}'.padLeft(2, '0')))),
+                            onChanged: (v) => setD(() => m = v ?? m),
+                          )),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<int>(
+                            value: y,
+                            decoration: const InputDecoration(labelText: 'Yıl'),
+                            items: List.generate(8, (i) => DropdownMenuItem(value: DateTime.now().year + i, child: Text('${DateTime.now().year + i}'))),
+                            onChanged: (v) => setD(() => y = v ?? y),
+                          )),
+                        ]),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Vazgeç')),
+                          FilledButton(onPressed: () { setM(() { startYear = y; startMonth = m; }); Navigator.pop(d); }, child: const Text('Seç')),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Kesinti Başlangıç Dönemi', suffixIcon: Icon(Icons.date_range_outlined)),
+                  child: Text('${startMonth.toString().padLeft(2, '0')}.$startYear'),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    if ((double.tryParse(amount.text.replaceAll(',', '.')) ?? 0) <= 0) {
+                      snack(parentContext, 'Geçerli bir avans tutarı girin.', error: true);
+                      return;
+                    }
+                    try {
+                      await widget.state.api.request('advance', method: 'POST', data: {
+                        'employee_id': employee['id'],
+                        'advance_date': DateFormat('yyyy-MM-dd').format(advanceDate),
+                        'amount': amount.text.replaceAll(',', '.'),
+                        'advance_type': type,
+                        'installment_count': type == 'installment' ? count : 1,
+                        'payment_method': method,
+                        'payment_start_year': startYear,
+                        'payment_start_month': startMonth,
+                        'installment_strategy': strategy,
+                      });
+                      saved = true;
+                      if (c.mounted) Navigator.pop(c);
+                      if (mounted) snack(context, 'Avans kaydı oluşturuldu.');
+                    } catch (e) {
+                      if (mounted) snack(context, '$e', error: true);
+                    }
+                  },
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Avansı Kaydet'),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+    amount.dispose();
+    return saved;
+  }
+
   Future<void> detail(dynamic row) async {
     final r = await widget.state.api.request('employee', query: {'id': row['id'], 'year': DateTime.now().year, 'month': DateTime.now().month});
     if (!mounted) return;
@@ -80,9 +233,32 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
           const Divider(height: 30),
           ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.payments_outlined), title: const Text('Güncel Maaş'), trailing: Text(r['salary'] == null ? 'Tanımlı değil' : money(r['salary']['salary_amount']), style: const TextStyle(fontWeight: FontWeight.w800))),
           const SizedBox(height: 8),
-          const Text('Açık Avanslar', style: TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          ...(r['open_advances'] as List).map((v) => Card(child: ListTile(title: Text(money(v['open_amount'])), subtitle: Text('${v['advance_type'] == 'installment' ? 'Taksitli' : 'Tek Avans'} · ${v['payment_method'] == 'manual' ? 'Diğer ödeme' : 'Maaştan kesinti'}'), trailing: Text('${v['advance_date']}')))),
+          Row(children: [
+            const Expanded(child: Text('Açık Avanslar', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16))),
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                final saved = await _newAdvance(context, e);
+                if (saved && c.mounted) {
+                  Navigator.pop(c);
+                  await detail(row);
+                }
+              },
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Yeni Avans'),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          ...(r['open_advances'] as List).map((v) => TechCard(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(width: 40,height:40,decoration:BoxDecoration(color:MTheme.limeSoft,borderRadius:BorderRadius.circular(12)),child:const Icon(Icons.account_balance_wallet_outlined,color:MTheme.ink)),
+              title: Text(money(v['open_amount']), style: const TextStyle(fontWeight: FontWeight.w900)),
+              subtitle: Text('${v['advance_type'] == 'installment' ? 'Taksitli' : 'Tek Avans'} · ${v['payment_method'] == 'manual' ? 'Diğer ödeme' : 'Maaştan kesinti'}'),
+              trailing: Text('${v['advance_date']}', style: const TextStyle(fontSize: 10, color: MTheme.muted)),
+            ),
+          )),
         ]),
       ),
     );

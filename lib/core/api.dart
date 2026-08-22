@@ -29,6 +29,13 @@ class ApiClient {
     return '$root/api/v1';
   }
 
+  String get publicRoot {
+    var root = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    root = root.replaceFirst(RegExp(r'/api/v1$'), '');
+    root = root.replaceFirst(RegExp(r'/api$'), '');
+    return root.replaceAll(RegExp(r'/+$'), '');
+  }
+
   Uri _uri(String route, [Map<String, dynamic>? query]) {
     final cleanRoute = route.replaceFirst(RegExp(r'^/+'), '');
     return Uri.parse('$apiRoot/$cleanRoute').replace(

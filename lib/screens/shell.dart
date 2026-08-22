@@ -31,37 +31,87 @@ class _AppShellState extends State<AppShell> {
     SettingsScreen(state: widget.state),
   ];
   final labels = ['Giriş', 'Personel', 'Puantaj', 'İzin', 'Maaş', 'Rapor', 'Tanımlar'];
-  final icons = [Icons.dashboard_outlined, Icons.badge_outlined, Icons.fact_check_outlined, Icons.beach_access_outlined, Icons.payments_outlined, Icons.assessment_outlined, Icons.tune_outlined];
+  final icons = [
+    Icons.space_dashboard_outlined,
+    Icons.groups_2_outlined,
+    Icons.fact_check_outlined,
+    Icons.beach_access_outlined,
+    Icons.account_balance_wallet_outlined,
+    Icons.query_stats_outlined,
+    Icons.tune_rounded,
+  ];
+
+  Future<void> logout() async {
+    MleyLoadingController.instance.reset();
+    await widget.state.logout();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('MleySoft İK', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)), Text(widget.state.company?['company_name'] ?? '', style: const TextStyle(fontSize: 10, color: Colors.white70))]),
+          toolbarHeight: 68,
+          titleSpacing: 16,
+          title: Row(children: [
+            Container(width: 38, height: 38, decoration: BoxDecoration(color: MTheme.lime, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.hub_outlined, color: MTheme.ink, size: 21)),
+            const SizedBox(width: 11),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('MleySoft İK', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+              Text(widget.state.company?['company_name'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, color: Colors.white60)),
+            ])),
+          ]),
           actions: [
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.account_circle_outlined),
-              onSelected: (v) async {
-                if (v == 'account') Navigator.push(context, MaterialPageRoute(builder: (_) => AccountScreen(state: widget.state)));
-                if (v == 'companies') Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
-                if (v == 'logout') widget.state.logout();
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(enabled: false, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(widget.state.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700)), Text(widget.state.user?['role'] == 'super_admin' ? 'Sistem Yöneticisi' : 'Firma Yöneticisi', style: const TextStyle(fontSize: 11))])),
-                const PopupMenuItem(value: 'account', child: Text('Hesap ve Güvenlik')),
-                if (widget.state.isSuper) const PopupMenuItem(value: 'companies', child: Text('Firma Yönetimi')),
-                const PopupMenuItem(value: 'logout', child: Text('Çıkış Yap')),
-              ],
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: PopupMenuButton<String>(
+                icon: Container(width: 38, height: 38, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.person_outline_rounded, size: 21)),
+                onSelected: (v) async {
+                  if (v == 'account' && mounted) {
+                    Navigator.push(context, PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 280),
+                      pageBuilder: (_, a, __) => FadeTransition(opacity: a, child: AccountScreen(state: widget.state)),
+                    ));
+                  }
+                  if (v == 'companies' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
+                  if (v == 'logout') await logout();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(enabled: false, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.state.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(widget.state.user?['role'] == 'super_admin' ? 'Sistem Yöneticisi' : 'Firma Yöneticisi', style: const TextStyle(fontSize: 10.5, color: MTheme.muted)),
+                  ])),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: 'account', child: Text('Hesap ve Güvenlik')),
+                  if (widget.state.isSuper) const PopupMenuItem(value: 'companies', child: Text('Firma Yönetimi')),
+                  const PopupMenuItem(value: 'logout', child: Text('Çıkış Yap')),
+                ],
+              ),
             ),
           ],
         ),
-        body: SafeArea(child: AnimatedSwitcher(duration: const Duration(milliseconds: 260), switchInCurve: Curves.easeOutCubic, switchOutCurve: Curves.easeInCubic, child: KeyedSubtree(key: ValueKey(index), child: pages[index]))),
-        bottomNavigationBar: NavigationBar(
-          height: 72,
-          selectedIndex: index,
-          onDestinationSelected: (i) { if(i==index)return; MleyLoadingController.instance.transition('Sayfa hazırlanıyor...'); setState(() => index = i); },
-          indicatorColor: MTheme.lime,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: List.generate(labels.length, (i) => NavigationDestination(icon: Icon(icons[i]), label: labels[i])),
+        body: SafeArea(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(position: Tween<Offset>(begin: const Offset(.025, 0), end: Offset.zero).animate(animation), child: child),
+            ),
+            child: KeyedSubtree(key: ValueKey(index), child: pages[index]),
+          ),
+        ),
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Color(0x160A1720), blurRadius: 20, offset: Offset(0, -5))]),
+          child: NavigationBar(
+            selectedIndex: index,
+            onDestinationSelected: (i) {
+              if (i == index) return;
+              MleyLoadingController.instance.transition('Sayfa hazırlanıyor...');
+              setState(() => index = i);
+            },
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: List.generate(labels.length, (i) => NavigationDestination(icon: Icon(icons[i]), label: labels[i])),
+          ),
         ),
       );
 }

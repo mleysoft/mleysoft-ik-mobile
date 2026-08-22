@@ -1,0 +1,14 @@
+MleySoft İK V95
+
+- Gizlilik/KVKK/Kullanım Koşulları linkleri API kökü yerine sistem ana dizininden açılır.
+- Android ve iOS aynı ortak Flutter kodunu kullandığı için link düzeltmesi iki platformda da geçerlidir.
+- Çıkış işleminde loading overlay sıfırlanır; oturum anında temizlenip login ekranı gösterilir.
+- Personel detayında Açık Avanslar yanına Yeni Avans butonu eklendi.
+- Yeni avans formu Maaş > Avans Ekle ile aynı temel alanları kullanır.
+- Global tema, kartlar, formlar, alt menü, header, login ve hesap ekranı kurumsal/teknolojik tasarıma yenilendi.
+- Sayfa geçişlerine yumuşak fade/slide animasyonu eklendi.
+- Android package: com.mleysoft.ik
+- iOS Bundle ID: com.mleysoft.ik
+- Uygulama adı: MleySoft İK
+- Version: 1.6.9
+- Build: 94

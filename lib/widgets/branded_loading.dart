@@ -19,6 +19,12 @@ class MleyLoadingController {
     if (active.value > 0) active.value = active.value - 1;
   }
 
+  void reset() {
+    _delay?.cancel();
+    active.value = 0;
+    message.value = 'Yükleniyor...';
+  }
+
   void transition([String text = 'Sayfa hazırlanıyor...']) {
     message.value = text;
     active.value = active.value + 1;

@@ -110,7 +110,7 @@ if info_plist.exists():
         plistlib.dump(info, f, sort_keys=False)
 
 
-# V93: App Store Bundle ID.
+# V94: App Store Bundle ID.
 # Flutter create --org com.mleysoft may generate com.mleysoft.mleysoftIk.
 # Runner app MUST always be com.mleysoft.ik. Test targets keep a unique .RunnerTests suffix.
 pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
@@ -152,4 +152,20 @@ if info_plist.exists():
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK V93: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
+print("iOS MleySoft İK V94: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
+
+
+# V94 hard verification: App Store branding must not fall back to Flutter defaults.
+required_icon = appicon / "Icon-App-1024x1024@1x.png"
+if not required_icon.exists() or required_icon.stat().st_size < 1000:
+    raise SystemExit("V94 ERROR: iOS App Store icon could not be installed.")
+
+if info_plist.exists():
+    with info_plist.open("rb") as f:
+        verify_info = plistlib.load(f)
+    if verify_info.get("CFBundleDisplayName") != "MleySoft İK":
+        raise SystemExit("V94 ERROR: CFBundleDisplayName is not MleySoft İK.")
+    if verify_info.get("CFBundleName") != "MleySoft İK":
+        raise SystemExit("V94 ERROR: CFBundleName is not MleySoft İK.")
+
+print("V94 VERIFY OK: iOS icon + display name + bundle id configured.")

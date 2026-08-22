@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'api.dart';
 import 'biometric_service.dart';
 import 'device_identity.dart';
+import '../widgets/branded_loading.dart';
 
 class AppState extends ChangeNotifier {
   AppState(this.api) {
@@ -129,7 +130,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/login', method: 'POST', data: {
       'email': email,
       'password': password,
-      'device_name': 'Flutter Native V90',
+      'device_name': 'Flutter Native V95',
     });
     await api.saveToken(r['token']);
     await api.storage.write(key:'session_mode',value:'admin');
@@ -164,7 +165,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/reset-password', method: 'POST', data: {
       'token': resetToken,
       'password': newPassword,
-      'device_name': 'Flutter Native V90',
+      'device_name': 'Flutter Native V95',
     });
     await api.saveToken(r['token']);
     user = Map<String, dynamic>.from(r['user']);
@@ -186,17 +187,15 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    try {
-      await api.request(employeeMode ? 'employee-auth/logout' : 'auth/logout', method: 'POST');
-    } catch (_) {}
     await api.saveToken(null);
-    await api.storage.delete(key:'session_mode');
+    await api.storage.delete(key: 'session_mode');
     employeeMode = false;
     employee = null;
     user = null;
     company = null;
     companies = [];
     locked = false;
+    MleyLoadingController.instance.reset();
     notifyListeners();
   }
 }

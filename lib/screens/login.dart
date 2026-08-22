@@ -187,13 +187,13 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
               constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 children: [
-                  Image.asset('assets/images/mleysoft-logo.png', height: 58),
+                  Container(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(18),boxShadow:MTheme.softShadow),child:Image.asset('assets/images/mleysoft-logo.png', height: 56)),
                   const SizedBox(height: 10),
-                  const Text('İK Yönetim Sistemi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  const Text('İK Yönetim Sistemi', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -.4)),
                   const SizedBox(height: 22),
                   Container(
-                    decoration:BoxDecoration(color:const Color(0xFFF0F3F5),borderRadius:BorderRadius.circular(14)),
-                    child:TabBar(controller:tabs,tabs:const [Tab(text:'Yönetici Girişi'),Tab(text:'Personel Girişi')]),
+                    decoration:BoxDecoration(color:MTheme.ink,borderRadius:BorderRadius.circular(16),boxShadow:MTheme.softShadow),
+                    child:TabBar(controller:tabs,dividerColor:Colors.transparent,labelColor:MTheme.ink,unselectedLabelColor:Colors.white70,indicatorSize:TabBarIndicatorSize.tab,indicator:BoxDecoration(color:MTheme.lime,borderRadius:BorderRadius.circular(12)),tabs:const [Tab(text:'Yönetici Girişi'),Tab(text:'Personel Girişi')]),
                   ),
                   const SizedBox(height:18),
                   SizedBox(
