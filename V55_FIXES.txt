@@ -1,0 +1,20 @@
+MleySoft IK Native V55
+
+Duzeltilen runtime crash:
+Android uygulama applicationId/namespace:
+    com.mleysoft.ik
+
+Flutter create tarafindan olusturulan MainActivity ise:
+    package com.example.mleysoft_ik
+
+oldugu icin Android manifest .MainActivity'yi
+com.mleysoft.ik.MainActivity olarak ariyor fakat APK icinde bu sinif bulunamiyordu.
+Sonuc:
+    ClassNotFoundException: com.mleysoft.ik.MainActivity
+
+V55:
+- MainActivity kesin olarak android/app/src/main/kotlin/com/mleysoft/ik/MainActivity.kt altina olusturulur.
+- package com.mleysoft.ik kullanilir.
+- FlutterFragmentActivity korunur.
+- com.example.* altindaki eski MainActivity dosyasi otomatik silinir.
+- run_android_windows.bat eski com.mleysoft.ik APK'sini emulator'dan kaldirip temiz kurulum yapar.

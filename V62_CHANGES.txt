@@ -1,0 +1,13 @@
+MleySoft İK V62
+- Kullanıcının yüklediği app_icons paketindeki Android ve iOS ikon setleri platformlara entegre edildi.
+- Personel Girişi eklendi: yalnızca personel kodu + ilk telefon eşleştirmesi.
+- Android cihaz kimliği Settings.Secure Android ID; iOS tarafında Keychain kalıcı anahtar + vendor bilgisiyle bağlanır.
+- Personel kodu başka telefonda kullanılırsa giriş reddedilir.
+- Web Personeller ekranından mobil cihaz bağlantısı iptal edilebilir.
+- Personel portalında kamera ile QR okutularak giriş saati kaydı oluşturulur.
+- Web'e Giriş QR Kodu sayfası ve QR yenileme eklendi.
+- Puantaja Geç Giriş / Erken Çıkış durumları ve saat girişi eklendi.
+- Geç/erken dakika bilgisi vardiya saatlerine göre hesaplanır.
+- Tanım Yönetimi > Vardiyalar eklendi; başlangıç/bitiş/tolerans tanımı ve toplu personel atama/çıkarma vardır.
+- Aylık raporlarda tarihsel vardiya bilgisi, toplam geç kalma ve erken çıkma süreleri gösterilir.
+- Mobil ikon yönetimi web tanımlarına eklendi; ancak işletim sistemi launcher ikonu canlı sunucudan değiştirilemez. Yeni build/mağaza güncellemesi gerekir.

@@ -1,0 +1,33 @@
+MleySoft İK V93 - TAM SİSTEM
+
+Bu paket site + API + SQL + mobil uygulamanın TAM sürümüdür.
+
+DÜZELTMELER
+- Android package / namespace kesin olarak com.mleysoft.ik.
+- iOS Runner Bundle ID kesin olarak com.mleysoft.ik.
+- Flutter create ile oluşabilecek com.mleysoft.mleysoftIk değeri otomatik düzeltilir.
+- RunnerTests bundle ID ayrı tutulur: com.mleysoft.ik.RunnerTests.
+- Apple ITMS-90683 için Info.plist açıklamaları hazırdır:
+  * NSCameraUsageDescription
+  * NSPhotoLibraryUsageDescription
+  * NSLocationWhenInUseUsageDescription
+  * NSFaceIDUsageDescription
+- Uygulama adı iOS/Android: MleySoft İK.
+- App Store / TestFlight sürümü: 1.6.8 (Build 92).
+- .gitignore tamamen düzeltildi. .dart_tool, build, .jdk ve imza anahtarları GitHub commit listesine girmez.
+- Release config doğrulama betiği eklendi: native_config/verify_release_config.py
+- Codemagic iOS hazırlığı ve TestFlight yapılandırması V93 olarak güncellendi.
+
+ÖNEMLİ
+GitHub'a gönderirken eski yerel repoda .dart_tool daha önce tracked ise bir kez:
+  git rm -r --cached .
+  git add .
+  git commit -m "MleySoft IK V93 full release"
+  git push origin main
+
+Codemagic build ayarları:
+- iOS Release
+- Automatic signing
+- App Store provisioning
+- Bundle ID: com.mleysoft.ik
+- API_BASE_URL=https://mleysoft.com/system/ik/api/v1

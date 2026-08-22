@@ -1,0 +1,5 @@
+MleySoft İK Mobil V79
+- Mobil şifremi unuttum isteği source=mobile olarak gönderilir.
+- E-postadaki sıfırlama bağlantısı doğrudan MleySoft İK uygulamasını açar.
+- Webden istenen sıfırlama bağlantısı web sayfasını açmaya devam eder.
+- V78 sonsuz kaydırma / 20 kayıtlık API sayfalama yapıları korunmuştur.

@@ -110,16 +110,35 @@ if info_plist.exists():
         plistlib.dump(info, f, sort_keys=False)
 
 
-# V91: App Store Bundle ID ve iOS izin metinleri.
+# V93: App Store Bundle ID.
+# Flutter create --org com.mleysoft may generate com.mleysoft.mleysoftIk.
+# Runner app MUST always be com.mleysoft.ik. Test targets keep a unique .RunnerTests suffix.
 pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
 if pbx.exists():
     t = pbx.read_text(encoding="utf-8")
     import re
-    t = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;", "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;", t)
+
+    # First preserve/fix test bundle identifiers.
+    t = re.sub(
+        r"PRODUCT_BUNDLE_IDENTIFIER = [^;]*RunnerTests;",
+        "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik.RunnerTests;",
+        t,
+    )
+
+    # Replace known Flutter-created app identifiers.
+    t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.mleysoftIk;",
+                  "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
+    t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.example.mleysoftIk;",
+                  "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
+    t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.example.mleysoft_ik;",
+                  "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;")
+
     pbx.write_text(t, encoding="utf-8")
     verify = pbx.read_text(encoding="utf-8")
     if "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;" not in verify:
-        raise SystemExit("iOS Bundle ID com.mleysoft.ik olarak ayarlanamadi.")
+        raise SystemExit("iOS Runner Bundle ID com.mleysoft.ik olarak ayarlanamadi.")
+    if "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.mleysoftIk;" in verify:
+        raise SystemExit("Eski iOS Bundle ID hala mevcut: com.mleysoft.mleysoftIk")
 
 if info_plist.exists():
     with info_plist.open("rb") as f:
@@ -133,4 +152,4 @@ if info_plist.exists():
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK V92: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
+print("iOS MleySoft İK V93: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")

@@ -1,0 +1,26 @@
+workflows:
+  ios-testflight:
+    name: MleySoft IK iOS TestFlight V93
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      groups:
+        - app_store_credentials
+      vars:
+        BUNDLE_ID: com.mleysoft.ik
+        API_BASE_URL: https://mleysoft.com/system/ik/api/v1
+    scripts:
+      - name: Create and configure iOS platform
+        script: |
+          rm -rf ios
+          flutter create --platforms=ios --org com.mleysoft .
+          python3 native_config/configure_ios.py
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build IPA
+        script: flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log

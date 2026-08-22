@@ -1,0 +1,8 @@
+MleySoft İK Mobil V82
+- Telefon uygulama adı Android/iOS: MleySoft İK
+- Gerçek Android cihaz açılışında Notification/WorkManager startup hataları artık uygulamayı kapatmaz.
+- Secure Storage / biyometri / notification intro bootstrap güvenli hale getirildi.
+- Android otomatik backup kapatıldı (encrypted storage restore çakışmasını önler).
+- prepare_android_v82.bat ve düzeltilmiş build_android_windows.bat kullanılır.
+- APK çıktısı: dist\MleySoft-IK-V82.apk
+- Sorun devam ederse android_crash_log.bat ile fiziksel telefon logu alınabilir.

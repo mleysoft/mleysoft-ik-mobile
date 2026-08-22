@@ -1,0 +1,16 @@
+MleySoft IK Native V50
+
+V49 hatasinin nedeni:
+Android Studio'nun jbr klasoru Java 25.0.2 kullaniyor.
+Eski betik ilk bulunan JDK'yi secip Java 25'i gordugunde duruyordu.
+Ayrica java -version stderr'e yazdigi icin PowerShell bunu NativeCommandError sayabiliyordu.
+
+V50:
+- java -version Start-Process ile okunur; stderr hata sayilmaz.
+- Tum JDK adaylari tek tek gercek major surumleriyle kontrol edilir.
+- Java 25 otomatik atlanir.
+- JDK 17-23 arasindaki ilk uyumlu kurulum secilir.
+- Bilgisayarda uyumlu JDK yoksa Temurin JDK 21 proje icine otomatik indirilir.
+- flutter config --jdk-dir otomatik uygulanir.
+- Android build Java 25 kullanmaz.
+- AGP 8.10.1 + Gradle 8.11.1 + API 36 zinciri korunur.

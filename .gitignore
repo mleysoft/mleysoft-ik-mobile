@@ -1,5 +1,53 @@
+# ================================
+# MleySoft IK - Flutter Git Ignore
+# ================================
 
-# Google Play release signing - private
+# Dart / Flutter generated
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Local JDK / local build tools
+.jdk/
+
+# IDE / editors
+.idea/
+.vscode/
+*.iml
+
+# Android generated/cache/local
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+# Android release signing - PRIVATE
 signing/*.jks
-signing/key.properties
 signing/*.keystore
+signing/key.properties
+*.jks
+*.keystore
+key.properties
+android/key.properties
+
+# iOS generated dependencies/cache
+# NOTE: Runner project itself is NOT ignored.
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs / temp
+*.log
+*.tmp
+*.temp

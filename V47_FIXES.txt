@@ -1,0 +1,17 @@
+MleySoft IK Native V47
+
+ASIL GRADLE/KOTLIN SORUNU:
+Flutter/AGP 9 ortaminda built-in Kotlin ve legacy Kotlin yapilari karismisti.
+Bu nedenle build.gradle.kts icindeki 'kotlin { compilerOptions { ... } }' blogu
+Kotlin extension'i olmadan calistiriliyor ve derleme duruyordu.
+
+V47:
+- android.builtInKotlin=false
+- android.newDsl=false
+- org.jetbrains.kotlin.android plugin'i uygulaniyor
+- kotlinOptions JVM 17 kullaniliyor
+- Built-in Kotlin DSL blogu tamamen kullanilmiyor
+- core library desugaring aktif
+- FlutterFragmentActivity aktif
+- Android platform ilk kurulumda sifirdan olusturuluyor
+- BAT icindeki tum flutter.bat cagrilari CALL ile yapiliyor

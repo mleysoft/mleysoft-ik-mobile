@@ -6,7 +6,7 @@ if "%API_BASE_URL%"=="" set "API_BASE_URL=https://mleysoft.com/system/ik"
 
 echo.
 echo ========================================================
-echo  MleySoft IK V90 - RELEASE BUILD
+echo  MleySoft IK V93 - RELEASE BUILD
 echo ========================================================
 
 call "%~dp0prepare_android_v90.bat"
@@ -60,27 +60,27 @@ if not "%FLUTTER_RC%"=="0" (
 )
 
 if not exist "dist" mkdir "dist"
-copy /Y "%AAB%" "dist\MleySoft-IK-V90-playstore.aab" >nul
+copy /Y "%AAB%" "dist\MleySoft-IK-V93-playstore.aab" >nul
 
 echo.
 echo JAR/AAB imzasi dogrulaniyor...
-"%JAVA_HOME%\bin\jarsigner.exe" -verify -verbose -certs "dist\MleySoft-IK-V90-playstore.aab" > "dist\V90-signature-verify.txt" 2>&1
+"%JAVA_HOME%\bin\jarsigner.exe" -verify -verbose -certs "dist\MleySoft-IK-V93-playstore.aab" > "dist\V93-signature-verify.txt" 2>&1
 if errorlevel 1 (
-    type "dist\V90-signature-verify.txt"
+    type "dist\V93-signature-verify.txt"
     goto :fail
 )
 
 echo.
 echo AAB ZIP butunlugu kontrol ediliyor...
 powershell -NoProfile -Command ^
-  "Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('%CD%\dist\MleySoft-IK-V90-playstore.aab'); if($z.Entries.Count -lt 1){exit 1}; $z.Dispose(); exit 0"
+  "Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('%CD%\dist\MleySoft-IK-V93-playstore.aab'); if($z.Entries.Count -lt 1){exit 1}; $z.Dispose(); exit 0"
 if errorlevel 1 goto :fail
 
 echo.
 echo ========================================================
 echo GOOGLE PLAY AAB HAZIR
 echo ========================================================
-echo %CD%\dist\MleySoft-IK-V90-playstore.aab
+echo %CD%\dist\MleySoft-IK-V93-playstore.aab
 echo.
 echo Paket: com.mleysoft.ik
 echo Surum: 1.6.6+88

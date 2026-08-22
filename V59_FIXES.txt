@@ -1,0 +1,12 @@
+MleySoft IK Native V59
+
+Duzeltilen Android resource hatasi:
+AAPT, layer-list icindeki
+    <item android:drawable="#FFFFFF" />
+satirini kabul etmiyordu; drawable attribute dogrudan hex renk alamaz.
+
+V59:
+- launch_background.xml arka plani shape + solid color ile tanimlandi.
+- drawable ve drawable-v21 icin gecerlidir.
+- Mevcut MleySoft splash ve launcher icon yapisi korunur.
+- Gradle/AGP uyarilari sadece warning'dir; build'i durduran hata bu resource satiriydi.
