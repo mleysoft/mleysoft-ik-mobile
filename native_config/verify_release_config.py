@@ -4,7 +4,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 errors=[]
-expected_version='1.6.29+117'
+expected_version='1.6.30+118'
 location_text='MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır.'
 
 pub=(root/'pubspec.yaml').read_text(encoding='utf-8')
@@ -36,7 +36,7 @@ if 'Geolocator.' in portal: errors.append('employee_portal hala Geolocator kulla
 
 main=(root/'lib/main.dart').read_text(encoding='utf-8')
 state=(root/'lib/core/app_state.dart').read_text(encoding='utf-8')
-if 'ForcedUpdateScreen' not in main or 'currentBuild = 117' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
+if 'ForcedUpdateScreen' not in main or 'currentBuild = 118' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
 
 # V116 Android adaptive icon: white background + inset transparent foreground.
 if 'mleysoft_adaptive_foreground_safe.png' not in android: errors.append('V116 adaptive icon foreground eksik')

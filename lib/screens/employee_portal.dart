@@ -145,7 +145,16 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
     setState(() => busy = true);
     try {
       final security = Map<String, dynamic>.from(data?['qr_security'] ?? {});
-      final payload = <String, dynamic>{'qr': code};
+      // V120: QR ekranda değişmeden önce o anki geçerli token sunucuda tek kullanımlık
+      // işlem bileti olarak kilitlenir. Konum alma uzasa bile ilk okutulan QR geçerliliğini korur.
+      final locked = await widget.state.api.request(
+        'employee/qr-lock',
+        method: 'POST',
+        data: {'qr': code},
+      );
+      final ticket = '${locked['ticket'] ?? ''}';
+      if (ticket.isEmpty) throw Exception('QR işlem bileti oluşturulamadı. Lütfen tekrar okutun.');
+      final payload = <String, dynamic>{'qr': code, 'qr_ticket': ticket};
       if (security['geofence_enabled'] == true) {
         if (!mounted) return;
         final continueWithLocation = await showDialog<bool>(
@@ -176,7 +185,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
         data: payload,
       );
       if (mounted) {
-        snack(context, '${r['message']}');
+        await _showScanSuccess('${r['message'] ?? 'İşlem başarıyla tamamlandı.'}');
         await load();
       }
     } catch (e) {
@@ -184,6 +193,56 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> _showScanSuccess(String message) async {
+    if (!mounted) return;
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    });
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'İşlem Tamamlandı',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, _, __) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 300,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [BoxShadow(blurRadius: 28, color: Colors.black26)],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F7EE),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF20A45B), width: 3),
+                  ),
+                  child: const Icon(Icons.check_rounded, size: 64, color: Color(0xFF20A45B)),
+                ),
+                const SizedBox(height: 18),
+                const Text('İşlem Tamamlandı', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: MTheme.ink)),
+                const SizedBox(height: 8),
+                Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, height: 1.4, color: Colors.black87)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
