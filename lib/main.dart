@@ -89,7 +89,17 @@ class _MleyAppState extends State<MleyApp> {
         final status = await NativeNotificationPermissionService.status();
         switch (status) {
           case NativeNotificationAuthorizationStatus.notDetermined:
-            shown = false;
+            // V119: iOS ilk kurulumda sistem bildirim iznini doğrudan iste.
+            // Keychain/secure-storage geçmişine bağlı kalma; gerçek iOS durumu esas alınır.
+            final granted = await NativeNotificationPermissionService.request();
+            if (granted) {
+              await NotificationService.instance.markPermissionIntroShown();
+              shown = true;
+            } else {
+              final refreshed = await NativeNotificationPermissionService.status();
+              denied = refreshed == NativeNotificationAuthorizationStatus.denied;
+              shown = false;
+            }
             break;
           case NativeNotificationAuthorizationStatus.denied:
             shown = false;
