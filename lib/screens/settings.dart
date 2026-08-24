@@ -814,7 +814,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: (defs!['departments'] as List).map((x) => Container(
                 margin: const EdgeInsets.only(bottom: 7),
                 decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
-                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('department', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('department', x))])),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Row(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('department', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('department', x))])),
               )).toList(),
             ),
           ),
@@ -827,7 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: (defs!['positions'] as List).map((x) => Container(
                 margin: const EdgeInsets.only(bottom: 7),
                 decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
-                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('position', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('position', x))])),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Row(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('position', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('position', x))])),
               )).toList(),
             ),
           ),
@@ -860,7 +860,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     leading: const Icon(Icons.schedule_outlined, color: MTheme.ink),
                     title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
                     subtitle: Text('${('${x['start_time']}').substring(0, 5)} - ${('${x['end_time']}').substring(0, 5)} · ${x['tolerance_minutes']} dk tolerans'),
-                    trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => addShift(x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış vardiya silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => removeShift(x))]),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => addShift(x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış vardiya silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => removeShift(x))]),
                   ),
                 )),
               ],

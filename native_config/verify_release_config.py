@@ -4,7 +4,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 errors = []
-expected_version = "1.6.16+104"
+expected_version = "1.6.17+105"
 location_text = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
 
 pub = (root / "pubspec.yaml").read_text(encoding="utf-8")
