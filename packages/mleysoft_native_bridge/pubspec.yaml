@@ -1,0 +1,15 @@
+name: mleysoft_native_bridge
+description: MleySoft IK native iOS location, notification permission and badge bridge.
+version: 1.0.0
+publish_to: none
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.24.0'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: MleySoftNativeBridgePlugin

@@ -1,0 +1,7 @@
+MleySoft IK V119
+- iOS konum ve bildirim native kanalları AppDelegate yamasi olmaktan çıkarıldı.
+- packages/mleysoft_native_bridge adlı gerçek Flutter iOS plugin'i eklendi.
+- Plugin GeneratedPluginRegistrant tarafından otomatik kaydedilir; UIScene/TestFlight yaşam döngüsüne bağlı MissingPluginException giderildi.
+- iOS konum yalnız requestWhenInUseAuthorization ile alınır; requestAlwaysAuthorization yoktur.
+- iOS bildirim yetkisi sistem durumu notDetermined ise ilk açılışta doğrudan istenir.
+- Bildirim izni verildiğinde registerForRemoteNotifications çağrılır.

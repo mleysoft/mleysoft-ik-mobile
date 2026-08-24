@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V118
+    name: MleySoft IK iOS TestFlight V119
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -19,20 +19,24 @@ workflows:
           python3 native_config/configure_ios.py
           test -f ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
-      - name: Get Flutter packages
-        script: flutter pub get
+      - name: Get Flutter packages and verify native plugin registration
+        script: |
+          flutter pub get
+          flutter build ios --config-only --release
+          grep -R -q 'MleySoftNativeBridgePlugin' ios/Runner/GeneratedPluginRegistrant.*
+          grep -R -q 'mleysoft_native_bridge' ios/Podfile.lock ios/Pods/Manifest.lock 2>/dev/null || true
       - name: Verify iOS foreground-only location configuration
         script: |
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" ios/Runner/Info.plist
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" ios/Runner/Info.plist >/dev/null 2>&1
           ! grep -q "geolocator:" pubspec.yaml
           ! grep -R -q "requestAlwaysAuthorization" ios/Runner
-          grep -q 'FlutterImplicitEngineDelegate' ios/Runner/AppDelegate.swift
-          grep -q 'didInitializeImplicitFlutterEngine' ios/Runner/AppDelegate.swift
-          grep -q 'engineBridge.pluginRegistry' ios/Runner/AppDelegate.swift
-          grep -q 'com.mleysoft.ik/location' ios/Runner/AppDelegate.swift
-          grep -q 'com.mleysoft.ik/permissions' ios/Runner/AppDelegate.swift
-          grep -q 'UNUserNotificationCenter.current().requestAuthorization' ios/Runner/AppDelegate.swift
+          test -f packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
+          grep -q 'com.mleysoft.ik/location' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
+          grep -q 'com.mleysoft.ik/permissions' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
+          grep -q 'requestWhenInUseAuthorization()' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
+          grep -q 'UNUserNotificationCenter.current().requestAuthorization' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
+          ! grep -q 'requestAlwaysAuthorization' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
       - name: Build IPA and verify final binary privacy
         script: |
           flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
@@ -48,7 +52,7 @@ workflows:
           if grep -R -a -q "requestAlwaysAuthorization" /tmp/mleysoft_ipa_verify/Payload; then echo "ERROR: Always Location API reference found in final IPA"; exit 1; fi
           grep -a -q "com.mleysoft.ik/location" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
           grep -a -q "com.mleysoft.ik/permissions" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
-          echo "V118 VERIFY OK: final IPA contains native location + notification permission bridges and no Always Location API reference."
+          echo "V119 VERIFY OK: final IPA contains registered native bridge channels, notification permission support and no Always Location API reference."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
