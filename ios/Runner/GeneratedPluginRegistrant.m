@@ -48,6 +48,12 @@
 @import local_auth_darwin;
 #endif
 
+#if __has_include(<mleysoft_native_bridge/MleySoftNativeBridgePlugin.h>)
+#import <mleysoft_native_bridge/MleySoftNativeBridgePlugin.h>
+#else
+@import mleysoft_native_bridge;
+#endif
+
 #if __has_include(<mobile_scanner/MobileScannerPlugin.h>)
 #import <mobile_scanner/MobileScannerPlugin.h>
 #else
@@ -94,6 +100,7 @@
   [FlutterLocalNotificationsPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterLocalNotificationsPlugin"]];
   [FlutterSecureStoragePlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterSecureStoragePlugin"]];
   [LocalAuthPlugin registerWithRegistrar:[registry registrarForPlugin:@"LocalAuthPlugin"]];
+  [MleySoftNativeBridgePlugin registerWithRegistrar:[registry registrarForPlugin:@"MleySoftNativeBridgePlugin"]];
   [MobileScannerPlugin registerWithRegistrar:[registry registrarForPlugin:@"MobileScannerPlugin"]];
   [PrintingPlugin registerWithRegistrar:[registry registrarForPlugin:@"PrintingPlugin"]];
   [FPPSharePlusPlugin registerWithRegistrar:[registry registrarForPlugin:@"FPPSharePlusPlugin"]];
