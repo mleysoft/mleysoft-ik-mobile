@@ -1,0 +1,15 @@
+import 'package:flutter/material.dart';
+import '../core/app_state.dart';
+import '../core/api.dart';
+import '../core/device_identity.dart';
+import '../widgets/common.dart';
+
+class RegisterCompanyScreen extends StatefulWidget{const RegisterCompanyScreen({super.key,required this.state});final AppState state;@override State<RegisterCompanyScreen> createState()=>_S();}
+class _S extends State<RegisterCompanyScreen>{
+ final company=TextEditingController(),name=TextEditingController(),phone=TextEditingController(),email=TextEditingController(),pass=TextEditingController();
+ List<dynamic> packages=[];int? packageId;bool busy=false,hide=true;
+ @override void initState(){super.initState();load();}
+ Future<void> load()async{try{final r=await widget.state.api.request('public/packages');if(mounted)setState(()=>packages=r['packages']??[]);}catch(e){if(mounted)snack(context,'$e',error:true);}}
+ Future<void> submit()async{if(packageId==null)return snack(context,'Paket seçiniz.',error:true);setState(()=>busy=true);try{final d=await DeviceIdentity.collect();final r=await widget.state.api.request('public/register',method:'POST',data:{'company_name':company.text.trim(),'name':name.text.trim(),'phone':phone.text.trim(),'email':email.text.trim(),'password':pass.text,'package_id':packageId,...d});await widget.state.acceptRegistration(r);if(mounted)Navigator.pop(context);}catch(e){if(mounted)snack(context,'$e',error:true);}finally{if(mounted)setState(()=>busy=false);}}
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Yeni Firma Kaydı')),body:SafeArea(child:ListView(padding:const EdgeInsets.all(18),children:[const Text('Firmanıza özel çalışma alanı oluşturun',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:6),const Text('Kayıt sonrası ödeme bilgilerinize uygulama içinden ulaşabilirsiniz.'),const SizedBox(height:20),TextField(controller:company,decoration:const InputDecoration(labelText:'Firma Adı *')),const SizedBox(height:12),TextField(controller:name,decoration:const InputDecoration(labelText:'Yetkili Ad Soyad *')),const SizedBox(height:12),TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(labelText:'Telefon')),const SizedBox(height:12),TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'E-posta *')),const SizedBox(height:12),DropdownButtonFormField<int>(value:packageId,decoration:const InputDecoration(labelText:'Paket *'),items:packages.map<DropdownMenuItem<int>>((p)=>DropdownMenuItem(value:int.tryParse('${p['id']}'),child:Text('${p['name']} · ${p['monthly_price']} TL/Ay'))).toList(),onChanged:(v)=>setState(()=>packageId=v)),const SizedBox(height:12),TextField(controller:pass,obscureText:hide,decoration:InputDecoration(labelText:'Şifre *',suffixIcon:IconButton(onPressed:()=>setState(()=>hide=!hide),icon:Icon(hide?Icons.visibility_outlined:Icons.visibility_off_outlined)))),const SizedBox(height:20),FilledButton.icon(onPressed:busy?null:submit,icon:const Icon(Icons.business_outlined),label:Text(busy?'Kaydediliyor...':'Firma Kaydını Oluştur'))])));
+}

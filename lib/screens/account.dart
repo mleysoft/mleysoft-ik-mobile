@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../core/app_state.dart';
 import '../core/notification_service.dart';
 import '../core/theme.dart';
 import '../widgets/branded_loading.dart';
 import '../widgets/common.dart';
+import 'in_app_browser.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.state});
@@ -49,8 +49,8 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> openWeb(String path) async {
     final url = '${widget.state.api.publicRoot}/${path.replaceFirst(RegExp(r'^/+'), '')}';
-    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    if (!ok && mounted) snack(context, 'Bağlantı açılamadı.', error: true);
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => InAppBrowserScreen(url: url, title: 'MleySoft')));
   }
 
   Future<void> logout() async {

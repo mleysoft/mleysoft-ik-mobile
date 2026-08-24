@@ -1,0 +1,11 @@
+MleySoft İK V108 – Kurumsal Personel Bildirim Merkezi
+
+- Firma ve sistem yöneticisi için web bildirim gönderim ekranı.
+- Tüm Firmalar / belirli firma, Tüm Departmanlar / belirli departman ve tekil personel hedefleme.
+- Başlık + detay mesajı, gönderim ve okunma takibi.
+- Personel mobil ekranında üst sağ bildirim ikonu ve okunmamış sayı rozeti.
+- Bildirim listesi ve bildirime dokununca tam detay popup.
+- Android/iOS yerel bildirim çubuğu entegrasyonu; iOS uygulama ikonunda okunmamış badge sayısı.
+- Android uygulama ikonu rozeti destekleyen launcher cihazlarda notification number üzerinden çalışır.
+- Personel ekleme/düzenlemede Firma ve Departman web + mobil + API seviyesinde zorunlu.
+- Mobil sürüm 1.6.19+107.

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../core/app_state.dart';
 import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'forgot_password.dart';
+import 'register_company.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.state});
@@ -130,17 +130,6 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                 : 'Lütfen paket ödeme işlemini gerçekleştiriniz.',
           ),
           actions: [
-            if (!employeePayment)
-              FilledButton(
-                onPressed: () async {
-                  Navigator.pop(c);
-                  await launchUrl(
-                    Uri.parse(e.paymentUrl ?? 'https://mleysoft.com/system/ik/login.php'),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
-                child: const Text('Ödeme İşlemi'),
-              ),
             TextButton(onPressed: () => Navigator.pop(c), child: const Text('Tamam')),
           ],
         ),
@@ -300,9 +289,9 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                   ),
                   const Row(children:[Expanded(child:Divider()),Padding(padding:EdgeInsets.symmetric(horizontal:10),child:Text('Henüz hesabınız yok mu?',style:TextStyle(fontSize:11,color:MTheme.muted))),Expanded(child:Divider())]),
                   const SizedBox(height:12),
-                  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()async{final uri=Uri.parse('https://mleysoft.com/system/ik/');await launchUrl(uri,mode:LaunchMode.externalApplication);},icon:const Icon(Icons.open_in_new,size:18),label:const Text('Yeni Başvuru'))),
+                  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RegisterCompanyScreen(state:widget.state))),icon:const Icon(Icons.business_outlined,size:18),label:const Text('Yeni Firma Kaydı'))),
                   const SizedBox(height:10),
-                  const Text('Yeni firma kaydı ve satın alma işlemleri yalnızca MleySoft web sitesinde yapılır.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
+                  const Text('Firma kaydınızı ve ödeme işlemlerinizi uygulamadan çıkmadan tamamlayabilirsiniz.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
                 ],
               ),
             ),

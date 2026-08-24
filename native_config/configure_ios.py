@@ -178,3 +178,8 @@ if info_plist.exists():
         raise SystemExit("V100 ERROR: CFBundleName is not Runner.")
 
 print("V100 VERIFY OK: Runner product name + MleySoft İK display name + bundle id configured.")
+
+# V108: Native iOS application icon unread badge bridge.
+app_delegate = runner / "AppDelegate.swift"
+app_delegate.write_text('''import Flutter\nimport UIKit\n\n@main\n@objc class AppDelegate: FlutterAppDelegate {\n  override func application(\n    _ application: UIApplication,\n    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?\n  ) -> Bool {\n    GeneratedPluginRegistrant.register(with: self)\n    if let controller = window?.rootViewController as? FlutterViewController {\n      let badgeChannel = FlutterMethodChannel(name: "com.mleysoft.ik/badge", binaryMessenger: controller.binaryMessenger)\n      badgeChannel.setMethodCallHandler { call, result in\n        if call.method == "setBadge", let args = call.arguments as? [String: Any], let count = args["count"] as? Int {\n          application.applicationIconBadgeNumber = max(0, count)\n          result(true)\n        } else {\n          result(FlutterMethodNotImplemented)\n        }\n      }\n    }\n    return super.application(application, didFinishLaunchingWithOptions: launchOptions)\n  }\n}\n''', encoding="utf-8")
+print("V108 iOS unread app badge bridge configured.")

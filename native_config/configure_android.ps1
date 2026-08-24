@@ -137,8 +137,20 @@ $mainActivity = @'
 package com.mleysoft.ik
 
 import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterFragmentActivity()
+class MainActivity : FlutterFragmentActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.mleysoft.ik/badge").setMethodCallHandler { call, result ->
+            if (call.method == "setBadge") {
+                // Android launcher rozetleri aktif notification sayısı / Notification.number ile yönetilir.
+                result.success(true)
+            } else result.notImplemented()
+        }
+    }
+}
 '@
 Set-Content (Join-Path $targetDir 'MainActivity.kt') $mainActivity -Encoding UTF8
 

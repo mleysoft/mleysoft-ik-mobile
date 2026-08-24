@@ -22,12 +22,18 @@ class AppState extends ChangeNotifier {
   String? accessNotice;
   String? accessNoticeCode;
   String? accessPaymentUrl;
+  bool paymentRequired = false;
+  Map<String,dynamic>? subscription;
 
 
   Future<void> _handlePaymentRequired(ApiException error) async {
     final wasEmployee = employeeMode || error.code == 'PAYMENT_REQUIRED_EMPLOYEE';
+    if (!wasEmployee) { paymentRequired = true; subscription = error.details['subscription'] is Map ? Map<String,dynamic>.from(error.details['subscription']) : subscription; notifyListeners(); return; }
     await api.saveToken(null);
     await api.storage.delete(key: 'session_mode');
+    await api.storage.delete(key: 'employee_notice_last_notified_id');
+    await api.storage.delete(key: 'pending_announcement_id');
+    paymentRequired = false; subscription = null;
     employeeMode = false;
     employee = null;
     user = null;
@@ -96,6 +102,8 @@ class AppState extends ChangeNotifier {
       employee = null;
       final companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
       company = companyId > 0 ? {'id': companyId, 'company_name': r['company_name']} : null;
+      paymentRequired = r['payment_required'] == true;
+      subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
     } catch (_) {
       if (api.token != null) await api.saveToken(null);
       user = null;
@@ -140,9 +148,23 @@ class AppState extends ChangeNotifier {
     user = Map<String, dynamic>.from(r['user']);
     companies = (r['companies'] ?? []) as List;
     if (r['company'] != null) company = Map<String, dynamic>.from(r['company']);
+    paymentRequired = r['payment_required'] == true;
+    subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
     locked = false;
     notifyListeners();
     return r['requires_company'] == true;
+  }
+
+  Future<void> acceptRegistration(Map<String,dynamic> r) async {
+    await api.saveToken(r['token']?.toString());
+    await api.storage.write(key:'session_mode',value:'admin');
+    employeeMode=false; employee=null;
+    user=Map<String,dynamic>.from(r['user']); company=Map<String,dynamic>.from(r['company']);
+    paymentRequired=true; subscription=null; locked=false; notifyListeners();
+  }
+
+  void updateSubscription(dynamic value){
+    if(value is Map){subscription=Map<String,dynamic>.from(value);paymentRequired=subscription?['allowed']!=true;notifyListeners();}
   }
 
   Future<void> requestManagerDeviceTransfer(String email, String password) async {
@@ -185,6 +207,8 @@ class AppState extends ChangeNotifier {
     });
     await api.saveToken(r['token']);
     await api.storage.write(key:'session_mode', value:'employee');
+    await api.storage.delete(key: 'employee_notice_last_notified_id');
+    await api.storage.delete(key: 'pending_announcement_id');
     employeeMode = true;
     employee = Map<String,dynamic>.from(r['employee']);
     company = Map<String,dynamic>.from(r['company']);
@@ -228,6 +252,10 @@ class AppState extends ChangeNotifier {
     }
     await api.saveToken(null);
     await api.storage.delete(key: 'session_mode');
+    await api.storage.delete(key: 'employee_notice_last_notified_id');
+    await api.storage.delete(key: 'pending_announcement_id');
+    paymentRequired = false;
+    subscription = null;
     employeeMode = false;
     employee = null;
     user = null;

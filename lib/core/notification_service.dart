@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:workmanager/workmanager.dart';
+import 'app_badge_service.dart';
 
 const _dailyTaskUniqueName = 'mleysoft.dailyHrCheck';
 const _dailyTaskName = 'mleysoft_daily_hr_check';
@@ -28,6 +29,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin plugin = FlutterLocalNotificationsPlugin();
   final FlutterSecureStorage storage = const FlutterSecureStorage();
   final ValueNotifier<String?> birthdayTapMessage = ValueNotifier<String?>(null);
+  final ValueNotifier<int?> announcementTapId = ValueNotifier<int?>(null);
+  final ValueNotifier<int> unreadAnnouncementCount = ValueNotifier<int>(0);
   bool initialized = false;
 
   static const _details = NotificationDetails(
@@ -78,11 +81,28 @@ class NotificationService {
   }
 
   Future<void> _handlePayload(String? payload) async {
-    if (payload == null || !payload.startsWith('birthday|')) return;
-    final message = payload.substring('birthday|'.length);
-    if (message.isEmpty) return;
-    await storage.write(key: 'pending_birthday_message', value: message);
-    birthdayTapMessage.value = message;
+    if (payload == null || payload.isEmpty) return;
+    if (payload.startsWith('birthday|')) {
+      final message = payload.substring('birthday|'.length);
+      if (message.isEmpty) return;
+      await storage.write(key: 'pending_birthday_message', value: message);
+      birthdayTapMessage.value = message;
+      return;
+    }
+    if (payload.startsWith('notice|')) {
+      final id = int.tryParse(payload.substring('notice|'.length));
+      if (id == null || id <= 0) return;
+      await storage.write(key: 'pending_announcement_id', value: '$id');
+      announcementTapId.value = id;
+    }
+  }
+
+  Future<int?> consumeAnnouncementTapId() async {
+    final direct = announcementTapId.value;
+    announcementTapId.value = null;
+    final stored = int.tryParse(await storage.read(key: 'pending_announcement_id') ?? '');
+    await storage.delete(key: 'pending_announcement_id');
+    return direct ?? stored;
   }
 
   Future<String?> consumeBirthdayMessage() async {
@@ -121,8 +141,8 @@ class NotificationService {
       await Workmanager().registerPeriodicTask(
         _dailyTaskUniqueName,
         _dailyTaskName,
-        frequency: const Duration(hours: 24),
-        initialDelay: next.difference(now),
+        frequency: employeeMode ? const Duration(minutes: 15) : const Duration(hours: 24),
+        initialDelay: employeeMode ? const Duration(minutes: 1) : next.difference(now),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
         constraints: Constraints(networkType: NetworkType.connected),
       );
@@ -130,9 +150,73 @@ class NotificationService {
   }
 
   Future<void> cancelDailyChecks() async {
+    try { await Workmanager().cancelByUniqueName(_dailyTaskUniqueName); } catch (_) {}
+    unreadAnnouncementCount.value = 0;
+    await AppBadgeService.setCount(0);
+  }
+
+  NotificationDetails _announcementDetails(int unread) => NotificationDetails(
+    android: AndroidNotificationDetails(
+      'mleysoft_announcements',
+      'Personel Duyuruları',
+      channelDescription: 'Firma yöneticisi tarafından gönderilen personel duyuruları',
+      importance: Importance.high,
+      priority: Priority.high,
+      number: unread > 0 ? unread : null,
+    ),
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      badgeNumber: unread,
+      interruptionLevel: InterruptionLevel.active,
+    ),
+  );
+
+  Future<int> pollEmployeeAnnouncements({bool showSystemNotifications = true}) async {
+    await initialize();
+    final mode = await storage.read(key: 'session_mode');
+    if (mode != 'employee') return 0;
+    final token = await storage.read(key: 'api_token');
+    if (token == null || token.isEmpty) return 0;
+    const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://mleysoft.com/system/ik');
+    final root = _apiRoot(baseUrl);
+    final lastId = int.tryParse(await storage.read(key: 'employee_notice_last_notified_id') ?? '0') ?? 0;
     try {
-      await Workmanager().cancelByUniqueName(_dailyTaskUniqueName);
-    } catch (_) {}
+      final response = await http.get(Uri.parse('$root/employee/notifications/poll?after_id=$lastId'), headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'});
+      if (response.statusCode != 200) return unreadAnnouncementCount.value;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map || decoded['ok'] != true) return unreadAnnouncementCount.value;
+      final unread = int.tryParse('${decoded['unread_count'] ?? 0}') ?? 0;
+      unreadAnnouncementCount.value = unread;
+      await AppBadgeService.setCount(unread);
+      final rows = (decoded['notifications'] ?? []) as List;
+      var newest = lastId;
+      if (showSystemNotifications) {
+        for (final raw in rows) {
+          if (raw is! Map) continue;
+          final id = int.tryParse('${raw['id'] ?? 0}') ?? 0;
+          if (id <= 0) continue;
+          newest = id > newest ? id : newest;
+          final title = '${raw['title'] ?? 'MleySoft İK'}';
+          final detail = '${raw['detail'] ?? ''}'.trim();
+          final body = detail.length > 180 ? '${detail.substring(0, 177)}...' : detail;
+          await plugin.show(700000 + (id % 2000000000), title, body, _announcementDetails(unread), payload: 'notice|$id');
+        }
+      } else if (rows.isNotEmpty) {
+        newest = int.tryParse('${rows.last['id'] ?? lastId}') ?? lastId;
+      }
+      if (newest > lastId) await storage.write(key: 'employee_notice_last_notified_id', value: '$newest');
+      return unread;
+    } catch (_) {
+      return unreadAnnouncementCount.value;
+    }
+  }
+
+  Future<void> notificationReadLocally(int id, int unread) async {
+    unreadAnnouncementCount.value = unread;
+    await AppBadgeService.setCount(unread);
+    try { await plugin.cancel(700000 + (id % 2000000000)); } catch (_) {}
   }
 
   Future<bool> runDailyBackgroundCheck() async {
@@ -142,6 +226,7 @@ class NotificationService {
     final employeeMode = mode == 'employee';
     final now = DateTime.now();
 
+    if (employeeMode) await pollEmployeeAnnouncements(showSystemNotifications: true);
     if (employeeMode && now.hour < 8) return true;
     if (!employeeMode && now.hour < 14) return true;
 

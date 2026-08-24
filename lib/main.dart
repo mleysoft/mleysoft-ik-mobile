@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'core/api.dart';
 import 'core/app_state.dart';
 import 'core/notification_service.dart';
@@ -10,6 +9,8 @@ import 'core/theme.dart';
 import 'screens/biometric_lock.dart';
 import 'screens/employee_portal.dart';
 import 'screens/login.dart';
+import 'screens/billing_native.dart';
+import 'widgets/connectivity_banner.dart';
 import 'screens/notification_permission.dart';
 import 'screens/reset_password.dart';
 import 'screens/shell.dart';
@@ -120,7 +121,6 @@ class _MleyAppState extends State<MleyApp> {
     accessNoticeDialogOpen = true;
     final employeeBlocked = state.accessNoticeCode == 'PAYMENT_REQUIRED_EMPLOYEE';
     final message = state.accessNotice!;
-    final paymentUrl = state.accessPaymentUrl;
     await showDialog<void>(
       context: navigatorKey.currentContext!,
       barrierDismissible: false,
@@ -128,14 +128,6 @@ class _MleyAppState extends State<MleyApp> {
         title: Text(employeeBlocked ? 'Firma Erişimi Kapalı' : 'Paket Süresi Doldu'),
         content: Text(message),
         actions: [
-          if (!employeeBlocked && paymentUrl != null)
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(c);
-                await launchUrl(Uri.parse(paymentUrl), mode: LaunchMode.externalApplication);
-              },
-              child: const Text('Ödeme İşlemi'),
-            ),
           TextButton(onPressed: () => Navigator.pop(c), child: const Text('Tamam')),
         ],
       ),
@@ -190,6 +182,8 @@ class _MleyAppState extends State<MleyApp> {
       home = NotificationPermissionScreen(onAllow: _allowNotifications, onLater: _skipNotifications);
     } else if (state.locked && state.hasStoredSession) {
       home = BiometricLockScreen(state: state);
+    } else if (state.paymentRequired && state.loggedIn && !state.employeeMode) {
+      home = BillingNativeScreen(state: state);
     } else if (state.employeeMode && state.loggedIn) {
       home = EmployeePortalScreen(state: state);
     } else if (state.loggedIn && state.company?['id'] != null) {
@@ -209,7 +203,7 @@ class _MleyAppState extends State<MleyApp> {
       title: 'MleySoft İK',
       theme: MTheme.light,
       builder: (context, child) => state.ready
-          ? MleyGlobalLoadingOverlay(child: child ?? const SizedBox.shrink())
+          ? ConnectivityBanner(child: MleyGlobalLoadingOverlay(child: child ?? const SizedBox.shrink()))
           : (child ?? const SizedBox.shrink()),
       home: home,
     );

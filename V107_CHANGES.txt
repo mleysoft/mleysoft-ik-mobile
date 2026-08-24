@@ -1,0 +1,13 @@
+MleySoft İK V107 – Native Firma Kayıt / Ödeme Merkezi / Uygulama İçi Web / Bağlantı Kontrolü
+
+- Yeni firma kaydı Flutter native ekranına taşındı.
+- Aktif paketler API üzerinden listelenir; firma, yetkili, telefon, e-posta, paket ve şifre ile kayıt oluşturulur.
+- Yeni kayıt sonrası kullanıcı oturumu korunarak doğrudan native Paket ve Ödeme ekranına yönlendirilir.
+- Ödeme bekleyen veya paket süresi + tolerans süresi dolmuş firma yöneticileri normal modüllere giremez, native ödeme merkezine yönlendirilir.
+- Tolerans hesabı merkezi company_subscription_state() sonucunu kullanır; mobilde ikinci tarih hesabı yapılmaz.
+- Ödeme merkezinde firma/paket, aylık tutar, bitiş tarihi, tolerans günü/sonu, firma referans kodu, banka, hesap adı ve IBAN gösterilir.
+- Referans kodu, hesap adı ve IBAN için kopyala butonları eklendi.
+- Native Ödeme Yaptım bildirimi API üzerinden payment_notifications tablosuna kaydolur.
+- Harici web sayfaları için uygulama içi WebView ekranı eklendi; uygulamadan çıkmadan görüntülenir.
+- Uygulama genelinde internet kesildiğinde alt bölümde İnternet bağlantınız kesildi bandı gösterilir, bağlantı gelince otomatik kaybolur.
+- Mobil sürüm 1.6.18+106.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,6 +6,7 @@ import '../core/app_state.dart';
 import '../core/notification_service.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'employee_notifications.dart';
 
 class EmployeePortalScreen extends StatefulWidget {
   const EmployeePortalScreen({super.key, required this.state});
@@ -18,22 +20,91 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
   Map<String, dynamic>? data;
   bool busy = false;
   bool birthdayDialogOpen = false;
+  bool noticeDialogOpen = false;
+  int unreadNotices = 0;
+  Timer? noticeTimer;
 
   @override
   void initState() {
     super.initState();
     NotificationService.instance.birthdayTapMessage.addListener(_birthdayTapListener);
-    load().then((_) => _showPendingBirthdayMessage());
+    NotificationService.instance.announcementTapId.addListener(_announcementTapListener);
+    NotificationService.instance.unreadAnnouncementCount.addListener(_unreadListener);
+    load().then((_) async { await _showPendingBirthdayMessage(); await _refreshNotices(); await _showPendingAnnouncement(); });
+    noticeTimer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshNotices());
   }
 
   @override
   void dispose() {
+    noticeTimer?.cancel();
     NotificationService.instance.birthdayTapMessage.removeListener(_birthdayTapListener);
+    NotificationService.instance.announcementTapId.removeListener(_announcementTapListener);
+    NotificationService.instance.unreadAnnouncementCount.removeListener(_unreadListener);
     super.dispose();
   }
 
   void _birthdayTapListener() {
     _showPendingBirthdayMessage();
+  }
+
+  void _unreadListener() {
+    if (mounted) setState(() => unreadNotices = NotificationService.instance.unreadAnnouncementCount.value);
+  }
+
+  void _announcementTapListener() {
+    _showPendingAnnouncement();
+  }
+
+  Future<void> _refreshNotices() async {
+    final count = await NotificationService.instance.pollEmployeeAnnouncements(showSystemNotifications: true);
+    if (mounted && count != unreadNotices) setState(() => unreadNotices = count);
+  }
+
+  Future<void> _showPendingAnnouncement() async {
+    if (!mounted || noticeDialogOpen) return;
+    final id = await NotificationService.instance.consumeAnnouncementTapId();
+    if (!mounted || id == null || id <= 0) return;
+    await _openAnnouncement(id);
+  }
+
+  Future<void> _openAnnouncement(int id) async {
+    if (!mounted || noticeDialogOpen) return;
+    try {
+      final r = await widget.state.api.request('employee/notifications', query: {'id': id});
+      final n = Map<String, dynamic>.from(r['notification'] as Map);
+      var unread = int.tryParse('${r['unread_count'] ?? unreadNotices}') ?? unreadNotices;
+      if (n['read_at'] == null) {
+        final rr = await widget.state.api.request('employee/notifications/read', method: 'POST', data: {'id': id});
+        unread = int.tryParse('${rr['unread_count'] ?? unread}') ?? unread;
+        await NotificationService.instance.notificationReadLocally(id, unread);
+      }
+      if (!mounted) return;
+      setState(() => unreadNotices = unread);
+      noticeDialogOpen = true;
+      await showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          icon: const Icon(Icons.notifications_active_outlined, size: 42, color: MTheme.ink),
+          title: Text('${n['title'] ?? 'Bildirim'}', textAlign: TextAlign.center),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(child: Text('${n['detail'] ?? ''}', style: const TextStyle(fontSize: 15, height: 1.55))),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Tamam'))],
+        ),
+      );
+      noticeDialogOpen = false;
+    } catch (e) {
+      noticeDialogOpen = false;
+      if (mounted) snack(context, '$e', error: true);
+    }
+  }
+
+  Future<void> _openNotificationCenter() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => EmployeeNotificationsScreen(state: widget.state)));
+    await _refreshNotices();
   }
 
   Future<void> _showPendingBirthdayMessage() async {
@@ -152,6 +223,27 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Bildirimler',
+            onPressed: _openNotificationCenter,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none_rounded),
+                if (unreadNotices > 0)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(color: MTheme.lime, borderRadius: BorderRadius.circular(10), border: Border.all(color: MTheme.ink, width: 1.2)),
+                      child: Text(unreadNotices > 99 ? '99+' : '$unreadNotices', textAlign: TextAlign.center, style: const TextStyle(color: MTheme.ink, fontSize: 9, fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           IconButton(
             tooltip: 'Oturumu Kapat',
             onPressed: widget.state.logout,
