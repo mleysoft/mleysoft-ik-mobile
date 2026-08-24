@@ -1,5 +1,5 @@
 name: mleysoft_ik
-version: 1.6.24+112
+version: 1.6.25+113
 publish_to: none
 environment:
   sdk: '>=3.4.0 <4.0.0'

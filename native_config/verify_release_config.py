@@ -4,7 +4,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 errors=[]
-expected_version='1.6.24+112'
+expected_version='1.6.25+113'
 location_text='MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır.'
 
 pub=(root/'pubspec.yaml').read_text(encoding='utf-8')
@@ -27,7 +27,7 @@ if 'Geolocator.' in portal: errors.append('employee_portal hala Geolocator kulla
 
 main=(root/'lib/main.dart').read_text(encoding='utf-8')
 state=(root/'lib/core/app_state.dart').read_text(encoding='utf-8')
-if 'ForcedUpdateScreen' not in main or 'currentBuild = 112' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
+if 'ForcedUpdateScreen' not in main or 'currentBuild = 113' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
 
 if errors:
     print('RELEASE CONFIG ERROR:')

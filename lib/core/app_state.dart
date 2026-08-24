@@ -25,8 +25,8 @@ class AppState extends ChangeNotifier {
   String? accessPaymentUrl;
   bool paymentRequired = false;
   Map<String,dynamic>? subscription;
-  static const int currentBuild = 112;
-  static const String currentVersion = '1.6.24';
+  static const int currentBuild = 113;
+  static const String currentVersion = '1.6.25';
   bool updateRequired = false;
   int minimumRequiredBuild = 0;
   String updateStoreUrl = '';

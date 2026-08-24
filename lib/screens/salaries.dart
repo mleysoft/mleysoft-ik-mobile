@@ -4,6 +4,7 @@ import '../core/app_state.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import '../widgets/employee_picker.dart';
+import '../core/payroll_pdf.dart';
 
 class SalariesScreen extends StatefulWidget {
   const SalariesScreen({super.key, required this.state});
@@ -41,46 +42,102 @@ class _SalariesScreenState extends State<SalariesScreen> {
 
   Future<List> employees() async => (await widget.state.api.request('employees', query:{'page':1,'per_page':100}))['employees'] as List;
 
+  Future<List> availableSalaryEmployees(DateTime start, DateTime end, {int excludeSalaryId = 0}) async {
+    final r = await widget.state.api.request('salary/available-employees', query: {
+      'start_date': DateFormat('yyyy-MM-dd').format(start),
+      'end_date': DateFormat('yyyy-MM-dd').format(end),
+      'exclude_salary_id': excludeSalaryId,
+    });
+    return (r['employees'] ?? []) as List;
+  }
+
   Future<void> salaryForm({Map<String, dynamic>? edit}) async {
-    final es = await employees();
     int? eid = edit == null ? null : int.tryParse('${edit['employee_id']}');
     final amount = TextEditingController(text: '${edit?['salary_amount'] ?? ''}');
     DateTime start = DateTime.tryParse('${edit?['start_date'] ?? ''}') ?? DateTime(DateTime.now().year, 1, 1);
     DateTime end = DateTime.tryParse('${edit?['end_date'] ?? ''}') ?? DateTime(DateTime.now().year, 12, 31);
+    List es = await availableSalaryEmployees(start, end, excludeSalaryId: int.tryParse('${edit?['id'] ?? 0}') ?? 0);
     if (!mounted) return;
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (c) => StatefulBuilder(builder: (c, setM) => Padding(
-            padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.viewInsetsOf(c).bottom + 16),
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Row(children: [Expanded(child: Text(edit == null ? 'Maaş Tanımı Ekle' : 'Maaş Tanımını Düzenle', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close))]),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: edit == null ? () async {
-                    final v = await showEmployeePicker(c, es, selectedId: eid);
-                    if (v != null) setM(() => eid = v);
-                  } : null,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Personel', suffixIcon: Icon(Icons.search)),
-                    child: Text(eid == null
-                      ? 'Personel ara ve seç'
-                      : (() { final e = es.firstWhere((x) => int.parse('${x['id']}') == eid); return '${e['first_name']} ${e['last_name']}'; })()),
-                  ),
+      builder: (c) => StatefulBuilder(builder: (c, setM) {
+        Future<void> refreshEmployees() async {
+          try {
+            final rows = await availableSalaryEmployees(start, end, excludeSalaryId: int.tryParse('${edit?['id'] ?? 0}') ?? 0);
+            if (!c.mounted) return;
+            setM(() {
+              es = rows;
+              if (eid != null && !es.any((x) => int.tryParse('${x['id']}') == eid)) eid = null;
+            });
+          } catch (e) {
+            if (mounted) snack(context, '$e', error: true);
+          }
+        }
+
+        String selectedName() {
+          if (eid == null) return 'Personel ara ve seç';
+          final matches = es.where((x) => int.tryParse('${x['id']}') == eid).toList();
+          if (matches.isEmpty && edit != null) return '${edit['first_name']} ${edit['last_name']}';
+          if (matches.isEmpty) return 'Personel ara ve seç';
+          final x = matches.first;
+          return '${x['first_name']} ${x['last_name']} · ${x['business_unit_name'] ?? ''}';
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.viewInsetsOf(c).bottom + 16),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                Expanded(child: Text(edit == null ? 'Maaş Tanımı Ekle' : 'Maaş Tanımını Düzenle', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
+                IconButton(onPressed: () => Navigator.pop(c), icon: const Icon(Icons.close)),
+              ]),
+              const SizedBox(height: 6),
+              const Text('Önce tarih aralığını seçin. Bu aralıkta maaş tanımı bulunan personeller listede gösterilmez.', style: TextStyle(fontSize: 12, color: MTheme.muted)),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(child: _dateField(c, 'Başlangıç', start, () async {
+                  final d = await pickDate(c, start);
+                  if (d != null) {
+                    setM(() => start = d);
+                    if (end.isBefore(start)) setM(() => end = start);
+                    await refreshEmployees();
+                  }
+                })),
+                const SizedBox(width: 8),
+                Expanded(child: _dateField(c, 'Bitiş', end, () async {
+                  final d = await pickDate(c, end);
+                  if (d != null) {
+                    setM(() => end = d.isBefore(start) ? start : d);
+                    await refreshEmployees();
+                  }
+                })),
+              ]),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: edit == null ? () async {
+                  final v = await showEmployeePicker(c, es, selectedId: eid);
+                  if (v != null) setM(() => eid = v);
+                } : null,
+                borderRadius: BorderRadius.circular(12),
+                child: InputDecorator(
+                  decoration: InputDecoration(labelText: 'Personel *', suffixIcon: edit == null ? const Icon(Icons.search) : const Icon(Icons.lock_outline)),
+                  child: Text(selectedName()),
                 ),
-                const SizedBox(height: 10),
-                TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Maaş Tutarı')),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: _dateField(c, 'Başlangıç', start, () async { final d = await pickDate(c, start); if (d != null) setM(() => start = d); })),
-                  const SizedBox(width: 8),
-                  Expanded(child: _dateField(c, 'Bitiş', end, () async { final d = await pickDate(c, end); if (d != null) setM(() => end = d); })),
-                ]),
-                const SizedBox(height: 14),
-                SizedBox(width: double.infinity, child: FilledButton(onPressed: () async {
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 5, left: 4),
+                child: Text('${es.length} uygun personel', style: const TextStyle(fontSize: 11, color: MTheme.muted)),
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Aylık Maaş *')),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç'))),
+                const SizedBox(width: 8),
+                Expanded(child: FilledButton(onPressed: () async {
                   if (eid == null) { snack(context, 'Personel seçin.', error: true); return; }
                   try {
                     final data = {'id': edit?['id'], 'employee_id': eid, 'salary_amount': amount.text, 'start_date': DateFormat('yyyy-MM-dd').format(start), 'end_date': DateFormat('yyyy-MM-dd').format(end)};
@@ -92,10 +149,12 @@ class _SalariesScreenState extends State<SalariesScreen> {
                     if (c.mounted) Navigator.pop(c);
                     await load();
                   } catch (e) { if (mounted) snack(context, '$e', error: true); }
-                }, child: Text(edit == null ? 'Maaşı Kaydet' : 'Değişiklikleri Kaydet'))),
+                }, child: Text(edit == null ? 'Maaşı Kaydet' : 'Kaydet'))),
               ]),
-            ),
-          )),
+            ]),
+          ),
+        );
+      }),
     );
   }
 
@@ -212,8 +271,81 @@ class _SalariesScreenState extends State<SalariesScreen> {
   }
 
   Future<void> payrollDialog() async {
-    int year = DateTime.now().year, month = DateTime.now().month;
-    await showDialog(context: context, builder: (c) => StatefulBuilder(builder: (c, setM) => AlertDialog(title: const Text('Dönem Maaşı Oluştur'), content: Column(mainAxisSize: MainAxisSize.min, children: [DropdownButtonFormField<int>(value: month, decoration: const InputDecoration(labelText: 'Ay'), items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}. Ay'))), onChanged: (v) => setM(() => month = v ?? month)), const SizedBox(height: 8), TextFormField(initialValue: '$year', keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Yıl'), onChanged: (v) => year = int.tryParse(v) ?? year)],), actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')), FilledButton(onPressed: () async { try { await widget.state.api.request('payroll/create', method: 'POST', data: {'year': year, 'month': month}); if (c.mounted) Navigator.pop(c); await load(); } catch (e) { if (mounted) snack(context, '$e', error: true); } }, child: const Text('Oluştur'))])));
+    int year = DateTime.now().year, month = DateTime.now().month, unitId = 0;
+    List units = [];
+    try {
+      final r = await widget.state.api.request('business-units');
+      units = (r['business_units'] ?? []) as List;
+    } catch (e) {
+      if (mounted) snack(context, '$e', error: true);
+      return;
+    }
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, setM) => AlertDialog(
+          title: const Text('Dönem Maaşı Oluştur'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  value: unitId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Firma *'),
+                  items: [
+                    const DropdownMenuItem(value: 0, child: Text('Tüm Firmalar')),
+                    ...units.map((u) => DropdownMenuItem(value: int.tryParse('${u['id']}') ?? 0, child: Text('${u['name']}'))),
+                  ],
+                  onChanged: (v) => setM(() => unitId = v ?? 0),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<int>(
+                  value: month,
+                  decoration: const InputDecoration(labelText: 'Ay'),
+                  items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}. Ay'))),
+                  onChanged: (v) => setM(() => month = v ?? month),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  initialValue: '$year',
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Yıl'),
+                  onChanged: (v) => year = int.tryParse(v) ?? year,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Tüm Firmalar seçildiğinde dönem maaşları her firma için ayrı kayıt olarak oluşturulur.',
+                  style: TextStyle(fontSize: 11, color: MTheme.muted),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  final r = await widget.state.api.request(
+                    'payroll/create',
+                    method: 'POST',
+                    data: {'year': year, 'month': month, 'business_unit_id': unitId},
+                  );
+                  if (c.mounted) Navigator.pop(c);
+                  if (mounted) snack(context, '${r['message'] ?? 'Dönem maaşları oluşturuldu.'}');
+                  await load();
+                } catch (e) {
+                  if (mounted) snack(context, '$e', error: true);
+                }
+              },
+              child: const Text('Oluştur'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> payrollItems(dynamic period) async {
@@ -222,6 +354,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
       query: {'period_id': period['id']},
     );
     final items = (r['items'] ?? []) as List;
+    final periodInfo = Map<String, dynamic>.from((r['period'] ?? period) as Map);
     if (!mounted) return;
 
     await showModalBottomSheet<void>(
@@ -231,58 +364,94 @@ class _SalariesScreenState extends State<SalariesScreen> {
       builder: (sheetContext) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: .86,
-          maxChildSize: .96,
+          initialChildSize: .9,
+          maxChildSize: .98,
           builder: (_, scrollController) {
             return Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          '${period['period_month']}.${period['period_year']} Dönem Maaşı',
-                          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(
+                            '${periodInfo['business_unit_name'] ?? 'Firma'} · ${periodInfo['period_month']}.${periodInfo['period_year']}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                          ),
+                          Text('${items.length} personel · Net ${money(periodInfo['total_net'])}', style: const TextStyle(fontSize: 11, color: MTheme.muted)),
+                        ]),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        icon: const Icon(Icons.close),
-                      ),
+                      IconButton(onPressed: () => Navigator.pop(sheetContext), icon: const Icon(Icons.close)),
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: items.isEmpty ? null : () async {
+                        try {
+                          await PayrollPdf.share(period: periodInfo, items: items);
+                        } catch (e) {
+                          if (mounted) snack(context, 'Bordro PDF oluşturulamadı: $e', error: true);
+                        }
+                      },
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      label: const Text('Toplu Bordro PDF'),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Expanded(
-                  child: ListView.builder(
+                  child: SingleChildScrollView(
                     controller: scrollController,
-                    itemCount: items.length,
-                    itemBuilder: (_, i) {
-                      final x = items[i];
-                      return Card(
-                        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                        child: ListTile(
-                          title: Text(
-                            '${x['first_name']} ${x['last_name']}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text(
-                            'Hesaplanan gün: ${x['calculated_days']} · Avans: ${money(x['advance_total'])}',
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                money(x['net_salary']),
-                                style: const TextStyle(fontWeight: FontWeight.w800),
-                              ),
-                              const Text('Net', style: TextStyle(fontSize: 9)),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowHeight: 44,
+                        dataRowMinHeight: 52,
+                        dataRowMaxHeight: 62,
+                        columns: const [
+                          DataColumn(label: Text('Personel')),
+                          DataColumn(label: Text('Aylık Maaş')),
+                          DataColumn(label: Text('Geldi')),
+                          DataColumn(label: Text('Hafta Tatili')),
+                          DataColumn(label: Text('Yıllık İzin')),
+                          DataColumn(label: Text('Ücretli İzin')),
+                          DataColumn(label: Text('Ücretsiz İzin')),
+                          DataColumn(label: Text('Rapor')),
+                          DataColumn(label: Text('Gelmedi')),
+                          DataColumn(label: Text('Hesaplanan')),
+                          DataColumn(label: Text('Hakediş')),
+                          DataColumn(label: Text('Avans')),
+                          DataColumn(label: Text('Net')),
+                        ],
+                        rows: items.map<DataRow>((raw) {
+                          final x = Map<String, dynamic>.from(raw as Map);
+                          return DataRow(cells: [
+                            DataCell(SizedBox(width: 150, child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('${x['first_name']} ${x['last_name']}', overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                              Text('${x['employee_no'] ?? ''}', style: const TextStyle(fontSize: 10, color: MTheme.muted)),
+                            ]))),
+                            DataCell(Text(money(x['monthly_salary']))),
+                            DataCell(Text('${x['present_days'] ?? 0}')),
+                            DataCell(Text('${x['weekly_off_days'] ?? 0}')),
+                            DataCell(Text('${x['annual_leave_days'] ?? 0}')),
+                            DataCell(Text('${x['paid_leave_days'] ?? 0}')),
+                            DataCell(Text('${x['unpaid_leave_days'] ?? 0}')),
+                            DataCell(Text('${x['sick_days'] ?? 0}')),
+                            DataCell(Text('${x['absent_days'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                            DataCell(Text('${x['calculated_days'] ?? 0}/${x['calendar_days'] ?? 0}')),
+                            DataCell(Text(money(x['gross_salary']))),
+                            DataCell(Text(money(x['advance_total']))),
+                            DataCell(Text(money(x['net_salary']), style: const TextStyle(fontWeight: FontWeight.w800))),
+                          ]);
+                        }).toList(),
+                      ),
+                    ),
                   ),
                 ),
                 Padding(
@@ -295,7 +464,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
                           await widget.state.api.request(
                             'payroll/cancel',
                             method: 'POST',
-                            data: {'period_id': period['id']},
+                            data: {'period_id': periodInfo['id']},
                           );
                           if (sheetContext.mounted) Navigator.pop(sheetContext);
                           await load();
@@ -304,7 +473,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
                         }
                       },
                       icon: const Icon(Icons.undo),
-                      label: const Text('Bu Dönemi İptal Et'),
+                      label: const Text('Bu Firma Dönemini İptal Et'),
                     ),
                   ),
                 ),
@@ -330,7 +499,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
         final x = lists[tab][i];
         if (tab == 0) return Card(margin: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: ListTile(onTap: () => salaryForm(edit: Map<String, dynamic>.from(x)), title: Text('${x['first_name']} ${x['last_name']}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${x['start_date']} - ${x['end_date']}'), trailing: Text(money(x['salary_amount']), style: const TextStyle(fontWeight: FontWeight.w800))));
         if (tab == 1) return Card(margin: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: ListTile(onTap: () => installmentDetail(x), title: Text('${x['first_name']} ${x['last_name']}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${x['advance_type'] == 'installment' ? 'Taksitli Avans' : 'Tek Avans'} · ${x['payment_method'] == 'manual' ? 'Diğer ödeme' : 'Maaştan kesinti'}\n${x['paid_installments'] ?? 0} ödendi · ${x['open_installments'] ?? 0} kaldı'), isThreeLine: true, trailing: PopupMenuButton<String>(onSelected: (v) async { if (v == 'detail') installmentDetail(x); if (v == 'edit') { final r = await widget.state.api.request('advance/manage', query: {'id': x['id']}); if (mounted) advanceForm(edit: Map<String, dynamic>.from(r['advance'])); } if (v == 'delete') { try { await widget.state.api.request('advance/manage', method: 'DELETE', data: {'id': x['id']}, query: {'id': x['id']}); load(); } catch (e) { if (mounted) snack(context, '$e', error: true); } } }, itemBuilder: (_) => [const PopupMenuItem(value: 'detail', child: Text('Taksit Detayları')), const PopupMenuItem(value: 'edit', child: Text('Düzenle')), const PopupMenuItem(value: 'delete', child: Text('Sil'))])));
-        return Card(margin: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: ListTile(onTap: () => payrollItems(x), leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)), title: Text('${x['period_month']}.${x['period_year']} Dönem Maaşı', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('Brüt: ${money(x['total_salary'])} · Avans: ${money(x['total_advance'])}'), trailing: Text(money(x['total_net']), style: const TextStyle(fontWeight: FontWeight.w800))));
+        return Card(margin: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: ListTile(onTap: () => payrollItems(x), leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)), title: Text('${x['business_unit_name'] ?? 'Firma'} · ${x['period_month']}.${x['period_year']}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('Dönem Maaşı · Brüt: ${money(x['total_salary'])} · Avans: ${money(x['total_advance'])}'), trailing: Text(money(x['total_net']), style: const TextStyle(fontWeight: FontWeight.w800))));
       }))),
     ]);
   }
