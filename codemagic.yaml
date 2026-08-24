@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V113
+    name: MleySoft IK iOS TestFlight V118
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -27,6 +27,12 @@ workflows:
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" ios/Runner/Info.plist >/dev/null 2>&1
           ! grep -q "geolocator:" pubspec.yaml
           ! grep -R -q "requestAlwaysAuthorization" ios/Runner
+          grep -q 'FlutterImplicitEngineDelegate' ios/Runner/AppDelegate.swift
+          grep -q 'didInitializeImplicitFlutterEngine' ios/Runner/AppDelegate.swift
+          grep -q 'engineBridge.pluginRegistry' ios/Runner/AppDelegate.swift
+          grep -q 'com.mleysoft.ik/location' ios/Runner/AppDelegate.swift
+          grep -q 'com.mleysoft.ik/permissions' ios/Runner/AppDelegate.swift
+          grep -q 'UNUserNotificationCenter.current().requestAuthorization' ios/Runner/AppDelegate.swift
       - name: Build IPA and verify final binary privacy
         script: |
           flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
@@ -40,7 +46,9 @@ workflows:
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" "$FINAL_PLIST" >/dev/null 2>&1
           if find /tmp/mleysoft_ipa_verify/Payload -iname '*geolocator*' | grep -q .; then echo "ERROR: geolocator artifact found in IPA"; exit 1; fi
           if grep -R -a -q "requestAlwaysAuthorization" /tmp/mleysoft_ipa_verify/Payload; then echo "ERROR: Always Location API reference found in final IPA"; exit 1; fi
-          echo "V113 VERIFY OK: final IPA has only When-In-Use location and no Always Location API reference."
+          grep -a -q "com.mleysoft.ik/location" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
+          grep -a -q "com.mleysoft.ik/permissions" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
+          echo "V118 VERIFY OK: final IPA contains native location + notification permission bridges and no Always Location API reference."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log

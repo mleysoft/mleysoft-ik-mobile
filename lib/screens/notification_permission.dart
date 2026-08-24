@@ -6,10 +6,12 @@ class NotificationPermissionScreen extends StatelessWidget {
     super.key,
     required this.onAllow,
     required this.onLater,
+    this.permissionDenied = false,
   });
 
   final Future<void> Function() onAllow;
   final Future<void> Function() onLater;
+  final bool permissionDenied;
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +38,10 @@ class NotificationPermissionScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Puantaj hatırlatmaları, vardiya uyarıları ve size özel bildirimleri zamanında alabilmek için MleySoft İK bildirimlerine izin verin.',
+              Text(
+                permissionDenied
+                    ? 'Bildirim izni daha önce kapatılmış. Personel duyurularını ve uygulama uyarılarını alabilmek için iPhone Ayarları’ndan MleySoft İK bildirimlerini açın.'
+                    : 'Puantaj hatırlatmaları, vardiya uyarıları ve size özel bildirimleri zamanında alabilmek için MleySoft İK bildirimlerine izin verin.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: MTheme.muted, height: 1.45),
               ),
@@ -48,7 +52,7 @@ class NotificationPermissionScreen extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onAllow,
                   icon: const Icon(Icons.notifications_outlined),
-                  label: const Text('Bildirimlere İzin Ver'),
+                  label: Text(permissionDenied ? 'iPhone Ayarlarını Aç' : 'Bildirimlere İzin Ver'),
                 ),
               ),
               const SizedBox(height: 8),

@@ -196,12 +196,13 @@ if info_plist.exists():
 
 print("V100 VERIFY OK: Runner product name + MleySoft İK display name + bundle id configured.")
 
-# V113: iOS badge + native foreground-only CoreLocation bridge.
-# DİKKAT: requestAlwaysAuthorization bilinçli olarak kullanılmaz.
+# V118: Flutter 3.41+ uses UIScene by default. Native channels therefore MUST be
+# registered against the implicit Flutter engine's pluginRegistry, not window/root VC.
 app_delegate = runner / "AppDelegate.swift"
 app_delegate.write_text(r"""import Flutter
 import UIKit
 import CoreLocation
+import UserNotifications
 
 final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
   private let manager = CLLocationManager()
@@ -219,7 +220,7 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
       result(FlutterError(code: "LOCATION_SERVICE_DISABLED", message: "Konum servisi kapalı.", details: nil))
       return
     }
-    if pending != nil {
+    guard pending == nil else {
       result(FlutterError(code: "LOCATION_BUSY", message: "Konum bilgisi alınıyor.", details: nil))
       return
     }
@@ -231,6 +232,7 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
     }
     timeoutWorkItem = timeout
     DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: timeout)
+
     switch manager.authorizationStatus {
     case .notDetermined:
       manager.requestWhenInUseAuthorization()
@@ -264,7 +266,9 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
     timeoutWorkItem = nil
     let result = pending
     pending = nil
-    result?(["latitude": location.coordinate.latitude, "longitude": location.coordinate.longitude, "accuracy": location.horizontalAccuracy])
+    result?(["latitude": location.coordinate.latitude,
+             "longitude": location.coordinate.longitude,
+             "accuracy": location.horizontalAccuracy])
   }
 
   func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -281,38 +285,89 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
 }
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, FlutterPluginRegistrant {
   private var locationBridge: MleyLocationBridge?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    if let controller = window?.rootViewController as? FlutterViewController {
-      let badgeChannel = FlutterMethodChannel(name: "com.mleysoft.ik/badge", binaryMessenger: controller.binaryMessenger)
-      badgeChannel.setMethodCallHandler { call, result in
-        if call.method == "setBadge", let args = call.arguments as? [String: Any], let count = args["count"] as? Int {
-          application.applicationIconBadgeNumber = max(0, count)
-          result(true)
-        } else {
-          result(FlutterMethodNotImplemented)
-        }
-      }
+    // Flutter 3.41+ UIScene: tell Flutter to invoke our registrant for the implicit engine.
+    pluginRegistrant = self
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
 
-      let bridge = MleyLocationBridge()
-      locationBridge = bridge
-      let locationChannel = FlutterMethodChannel(name: "com.mleysoft.ik/location", binaryMessenger: controller.binaryMessenger)
-      locationChannel.setMethodCallHandler { call, result in
-        if call.method == "getCurrentLocation" {
-          bridge.getCurrentLocation(result)
-        } else {
-          result(FlutterMethodNotImplemented)
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    register(with: engineBridge.pluginRegistry)
+  }
+
+  func register(with registry: FlutterPluginRegistry) {
+    GeneratedPluginRegistrant.register(with: registry)
+    guard let registrar = registry.registrar(forPlugin: "MleySoftNativeBridge") else { return }
+    let messenger = registrar.messenger()
+
+    let badgeChannel = FlutterMethodChannel(name: "com.mleysoft.ik/badge", binaryMessenger: messenger)
+    badgeChannel.setMethodCallHandler { call, result in
+      if call.method == "setBadge", let args = call.arguments as? [String: Any], let count = args["count"] as? Int {
+        DispatchQueue.main.async {
+          UIApplication.shared.applicationIconBadgeNumber = max(0, count)
         }
+        result(true)
+      } else {
+        result(FlutterMethodNotImplemented)
       }
     }
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    let bridge = MleyLocationBridge()
+    locationBridge = bridge
+    let locationChannel = FlutterMethodChannel(name: "com.mleysoft.ik/location", binaryMessenger: messenger)
+    locationChannel.setMethodCallHandler { call, result in
+      if call.method == "getCurrentLocation" {
+        DispatchQueue.main.async { bridge.getCurrentLocation(result) }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    let permissionChannel = FlutterMethodChannel(name: "com.mleysoft.ik/permissions", binaryMessenger: messenger)
+    permissionChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "getNotificationAuthorizationStatus":
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+          let value: String
+          switch settings.authorizationStatus {
+          case .notDetermined: value = "notDetermined"
+          case .denied: value = "denied"
+          case .authorized: value = "authorized"
+          case .provisional: value = "provisional"
+          case .ephemeral: value = "ephemeral"
+          @unknown default: value = "unknown"
+          }
+          DispatchQueue.main.async { result(value) }
+        }
+      case "requestNotificationPermission":
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+          DispatchQueue.main.async {
+            if let error = error {
+              result(FlutterError(code: "NOTIFICATION_PERMISSION_ERROR", message: error.localizedDescription, details: nil))
+            } else {
+              result(granted)
+            }
+          }
+        }
+      case "openNotificationSettings":
+        DispatchQueue.main.async {
+          guard let url = URL(string: UIApplication.openSettingsURLString) else {
+            result(false)
+            return
+          }
+          UIApplication.shared.open(url, options: [:]) { success in result(success) }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 }
 """, encoding="utf-8")
-print("V113 iOS native foreground location + unread app badge bridge configured.")
+print("V118 iOS UIScene native location + badge + notification permission bridges configured on implicit Flutter engine.")

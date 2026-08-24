@@ -4,7 +4,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 errors=[]
-expected_version='1.6.27+115'
+expected_version='1.6.28+116'
 location_text='MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır.'
 
 pub=(root/'pubspec.yaml').read_text(encoding='utf-8')
@@ -16,7 +16,7 @@ for item in ['namespace = "com.mleysoft.ik"','applicationId = "com.mleysoft.ik"'
     if item not in android: errors.append(f'Android config eksik: {item}')
 
 ios=(root/'native_config/configure_ios.py').read_text(encoding='utf-8')
-for item in ['com.mleysoft.ik','NSCameraUsageDescription','NSPhotoLibraryUsageDescription','NSLocationWhenInUseUsageDescription','NSFaceIDUsageDescription',location_text,'requestWhenInUseAuthorization','com.mleysoft.ik/location']:
+for item in ['com.mleysoft.ik','NSCameraUsageDescription','NSPhotoLibraryUsageDescription','NSLocationWhenInUseUsageDescription','NSFaceIDUsageDescription',location_text,'requestWhenInUseAuthorization','com.mleysoft.ik/location','com.mleysoft.ik/permissions','FlutterImplicitEngineDelegate','UNUserNotificationCenter.current().requestAuthorization']:
     if item not in ios: errors.append(f'iOS config eksik: {item}')
 if 'info["NSLocationAlwaysAndWhenInUseUsageDescription"]' in ios: errors.append('iOS Always Location purpose string yeniden eklenmemeli')
 
@@ -27,7 +27,7 @@ if 'Geolocator.' in portal: errors.append('employee_portal hala Geolocator kulla
 
 main=(root/'lib/main.dart').read_text(encoding='utf-8')
 state=(root/'lib/core/app_state.dart').read_text(encoding='utf-8')
-if 'ForcedUpdateScreen' not in main or 'currentBuild = 115' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
+if 'ForcedUpdateScreen' not in main or 'currentBuild = 116' not in state: errors.append('Zorunlu guncelleme kontrolu eksik')
 
 # V116 Android adaptive icon: white background + inset transparent foreground.
 if 'mleysoft_adaptive_foreground_safe.png' not in android: errors.append('V116 adaptive icon foreground eksik')

@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:workmanager/workmanager.dart';
 import 'app_badge_service.dart';
+import 'native_notification_permission_service.dart';
 
 const _dailyTaskUniqueName = 'mleysoft.dailyHrCheck';
 const _dailyTaskName = 'mleysoft_daily_hr_check';
@@ -122,12 +123,18 @@ class NotificationService {
 
   Future<bool> requestPermission() async {
     await initialize();
+    if (Platform.isIOS) {
+      // V118: iOS izni doğrudan UNUserNotificationCenter native bridge üzerinden istenir.
+      // Böylece flutter_local_notifications başlatma sırası / scene lifecycle nedeniyle
+      // sistem izin penceresinin atlanması engellenir.
+      final ok = await NativeNotificationPermissionService.request();
+      await storage.write(key: 'notification_permission_granted', value: ok ? '1' : '0');
+      return ok;
+    }
     final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    final ios = plugin.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
     final androidOk = await android?.requestNotificationsPermission() ?? true;
-    final iosOk = await ios?.requestPermissions(alert: true, badge: true, sound: true) ?? true;
-    await storage.write(key: 'notification_permission_granted', value: (androidOk && iosOk) ? '1' : '0');
-    return androidOk && iosOk;
+    await storage.write(key: 'notification_permission_granted', value: androidOk ? '1' : '0');
+    return androidOk;
   }
 
   Future<void> initializeBackgroundScheduler() async {
