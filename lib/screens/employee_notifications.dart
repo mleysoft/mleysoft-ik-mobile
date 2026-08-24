@@ -109,7 +109,7 @@ class _EmployeeNotificationsScreenState extends State<EmployeeNotificationsScree
         body: RefreshIndicator(
           onRefresh: load,
           child: busy
-              ? const ListView(children: [SizedBox(height: 220), Center(child: CircularProgressIndicator())])
+              ? ListView(children: const [SizedBox(height: 220), Center(child: CircularProgressIndicator())])
               : rows.isEmpty
                   ? ListView(children: const [SizedBox(height: 180), Center(child: Text('Henüz bildiriminiz bulunmuyor.'))])
                   : ListView.separated(
