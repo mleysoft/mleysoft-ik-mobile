@@ -268,7 +268,7 @@ if (Test-Path $manifest) {
 
 # V61 Android launcher icon and minimal native splash.
 $resRoot = Join-Path $appRoot 'src/main/res'
-$adaptiveForeground = Join-Path $projectRoot 'assets/platform_icons/android/play_store_appicon_icon_512.png'
+$adaptiveForeground = Join-Path $projectRoot 'assets/platform_icons/android/mleysoft_adaptive_foreground_safe.png'
 $transparentSplash = Join-Path $projectRoot 'assets/images/mleysoft-transparent-splash.png'
 
 foreach ($density in @('mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi')) {
@@ -297,7 +297,7 @@ $colorsFile = Join-Path $valuesDir 'mleysoft_colors.xml'
 $colorsXml = @'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="mleysoft_icon_background">#11181F</color>
+    <color name="mleysoft_icon_background">#FFFFFF</color>
 </resources>
 '@
 Set-Content $colorsFile $colorsXml -Encoding UTF8
