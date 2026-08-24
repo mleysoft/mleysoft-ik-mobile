@@ -34,9 +34,87 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
   }
 
 
+
+  Future<void> handleManagerDeviceConflict(ApiException e) async {
+    if (!mounted) return;
+    final model = '${e.details['active_device_model'] ?? 'Kayıtlı telefon'}';
+    final platform = '${e.details['active_platform'] ?? ''}';
+    final lastSeen = '${e.details['active_last_seen'] ?? ''}';
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Hesap Başka Telefonda Açık'),
+        content: Text(
+          'Bu yönetici hesabı $model${platform.isNotEmpty ? ' ($platform)' : ''} cihazında bağlı durumda.'
+          '${lastSeen.isNotEmpty ? '\n\nSon aktivite: $lastSeen' : ''}'
+          '\n\nEski telefona erişiminiz varsa o cihazdan Çıkış yapın. Uygulama silindiyse veya eski telefona erişemiyorsanız e-posta doğrulamasıyla bu telefonu yetkilendirebilirsiniz.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Eski Cihaza Erişemiyorum')),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+    try {
+      await widget.state.requestManagerDeviceTransfer(email.text.trim(), pass.text);
+    } catch (err) {
+      if (mounted) snack(context, '$err', error: true);
+      return;
+    }
+    if (!mounted) return;
+    final code = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        title: const Text('Yeni Telefonu Doğrula'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Yönetici e-posta adresinize gönderilen 6 haneli kodu girin. Kod 10 dakika geçerlidir.'),
+            const SizedBox(height: 14),
+            TextField(
+              controller: code,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Doğrulama Kodu', counterText: ''),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+          FilledButton(
+            onPressed: () async {
+              if (code.text.replaceAll(RegExp(r'\D'), '').length != 6) return;
+              try {
+                final choose = await widget.state.confirmManagerDeviceTransfer(email.text.trim(), pass.text, code.text);
+                if (c.mounted) Navigator.pop(c, true);
+                if (choose && mounted) {
+                  // Super admin için firma seçimi normal login akışında tekrar açılabilir.
+                  snack(context, 'Yeni telefon doğrulandı. Firma seçiminizi yapabilirsiniz.');
+                }
+              } catch (err) {
+                if (mounted) snack(context, '$err', error: true);
+              }
+            },
+            child: const Text('Bu Telefonu Yetkilendir'),
+          ),
+        ],
+      ),
+    );
+    code.dispose();
+    if (confirmed == true && mounted) {
+      snack(context, 'Eski telefonun yönetici oturumu kapatıldı. Bu telefon yetkilendirildi.');
+    }
+  }
+
   Future<void> handleLoginError(Object e) async {
     if (!mounted) return;
-    if (e is ApiException &&
+    if (e is ApiException && e.code == 'MANAGER_DEVICE_ACTIVE') {
+      await handleManagerDeviceConflict(e);
+    } else if (e is ApiException &&
         (e.code == 'PAYMENT_REQUIRED_EMPLOYEE' ||
          e.code == 'PAYMENT_REQUIRED_MANAGER' ||
          e.code == 'PAYMENT_REQUIRED')) {

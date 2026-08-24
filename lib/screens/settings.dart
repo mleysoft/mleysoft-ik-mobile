@@ -200,9 +200,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> add(String type) async {
-    final controller = TextEditingController();
-    await showDialog(context: context, builder: (c) => AlertDialog(title: Text(type == 'department' ? 'Departman Ekle' : 'Görev / Ünvan Ekle'), content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Tanım')), actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')), FilledButton(onPressed: () async { try { await widget.state.api.request('definitions/item', method: 'POST', data: {'type': type, 'name': controller.text.trim()}); if (c.mounted) Navigator.pop(c); load(); } catch (e) { if (mounted) snack(context, '$e', error: true); } }, child: const Text('Kaydet'))]));
+  Future<void> add(String type, [dynamic item]) async {
+    final editing = item != null;
+    final controller = TextEditingController(text: '${item?['name'] ?? ''}');
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(editing
+            ? (type == 'department' ? 'Departmanı Düzenle' : 'Görev / Ünvanı Düzenle')
+            : (type == 'department' ? 'Departman Ekle' : 'Görev / Ünvan Ekle')),
+        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Tanım')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')),
+          FilledButton(
+            onPressed: () async {
+              if (controller.text.trim().isEmpty) return;
+              try {
+                await widget.state.api.request(
+                  'definitions/item',
+                  method: editing ? 'PUT' : 'POST',
+                  query: editing ? {'type': type, 'id': item['id']} : null,
+                  data: {'type': type, 'id': item?['id'], 'name': controller.text.trim()},
+                );
+                if (c.mounted) Navigator.pop(c);
+                await load();
+              } catch (e) {
+                if (mounted) snack(context, '$e', error: true);
+              }
+            },
+            child: Text(editing ? 'Değişiklikleri Kaydet' : 'Kaydet'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> remove(String type, dynamic item) async {
@@ -213,9 +243,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 
-  Future<void> addShift() async {
-    final name=TextEditingController(),start=TextEditingController(text:'08:00'),end=TextEditingController(text:'17:00'),tol=TextEditingController(text:'0');
-    await showDialog<void>(context:context,builder:(c)=>AlertDialog(title:const Text('Yeni Vardiya Tanımı'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:name,decoration:const InputDecoration(labelText:'Vardiya Adı')),const SizedBox(height:10),TextField(controller:start,decoration:const InputDecoration(labelText:'Başlangıç (HH:mm)')),const SizedBox(height:10),TextField(controller:end,decoration:const InputDecoration(labelText:'Bitiş (HH:mm)')),const SizedBox(height:10),TextField(controller:tol,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Tolerans (dk)'))])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Vazgeç')),FilledButton(onPressed:()async{try{await widget.state.api.request('definitions/shift',method:'POST',data:{'name':name.text.trim(),'start_time':start.text.trim(),'end_time':end.text.trim(),'tolerance_minutes':int.tryParse(tol.text)??0});if(c.mounted)Navigator.pop(c);await load();}catch(e){if(mounted)snack(context,'$e',error:true);}},child:const Text('Kaydet'))]));
+  Future<void> addShift([dynamic row]) async {
+    final editing = row != null;
+    final name=TextEditingController(text:'${row?['name'] ?? ''}');
+    final start=TextEditingController(text:('${row?['start_time'] ?? '08:00'}').substring(0,5));
+    final end=TextEditingController(text:('${row?['end_time'] ?? '17:00'}').substring(0,5));
+    final tol=TextEditingController(text:'${row?['tolerance_minutes'] ?? 0}');
+    await showDialog<void>(
+      context:context,
+      builder:(c)=>AlertDialog(
+        title:Text(editing ? 'Vardiya Tanımını Düzenle' : 'Yeni Vardiya Tanımı'),
+        content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          TextField(controller:name,decoration:const InputDecoration(labelText:'Vardiya Adı')),
+          const SizedBox(height:10),
+          TextField(controller:start,decoration:const InputDecoration(labelText:'Başlangıç (HH:mm)')),
+          const SizedBox(height:10),
+          TextField(controller:end,decoration:const InputDecoration(labelText:'Bitiş (HH:mm)')),
+          const SizedBox(height:10),
+          TextField(controller:tol,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Tolerans (dk)'))
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Vazgeç')),
+          FilledButton(onPressed:()async{
+            try{
+              await widget.state.api.request(
+                'definitions/shift',
+                method: editing ? 'PUT' : 'POST',
+                query: editing ? {'id':row['id']} : null,
+                data:{'id':row?['id'],'name':name.text.trim(),'start_time':start.text.trim(),'end_time':end.text.trim(),'tolerance_minutes':int.tryParse(tol.text)??0}
+              );
+              if(c.mounted)Navigator.pop(c);await load();
+            }catch(e){if(mounted)snack(context,'$e',error:true);}
+          },child:Text(editing ? 'Değişiklikleri Kaydet' : 'Kaydet'))
+        ]
+      )
+    );
   }
   Future<void> removeShift(dynamic x) async {try{await widget.state.api.request('definitions/shift',method:'DELETE',query:{'id':x['id']},data:{'id':x['id']});await load();}catch(e){if(mounted)snack(context,'$e',error:true);}}
   Future<void> newShiftWork({bool temporary = false}) async {
@@ -752,7 +814,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: (defs!['departments'] as List).map((x) => Container(
                 margin: const EdgeInsets.only(bottom: 7),
                 decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
-                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('department', x))),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('department', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('department', x))])),
               )).toList(),
             ),
           ),
@@ -765,7 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: (defs!['positions'] as List).map((x) => Container(
                 margin: const EdgeInsets.only(bottom: 7),
                 decoration: BoxDecoration(color: const Color(0xFFF7F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: MTheme.line)),
-                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => remove('position', x))),
+                child: ListTile(dense: true, title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => add('position', x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış tanım silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => remove('position', x))])),
               )).toList(),
             ),
           ),
@@ -798,7 +860,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     leading: const Icon(Icons.schedule_outlined, color: MTheme.ink),
                     title: Text('${x['name']}', style: const TextStyle(fontWeight: FontWeight.w800)),
                     subtitle: Text('${('${x['start_time']}').substring(0, 5)} - ${('${x['end_time']}').substring(0, 5)} · ${x['tolerance_minutes']} dk tolerans'),
-                    trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => removeShift(x)),
+                    trailing: Wrap(mainAxisSize: MainAxisSize.min, children:[IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => addShift(x)),IconButton(tooltip: x['used'] == true || '${x['used']}' == '1' ? 'Kullanılmış vardiya silinemez' : 'Sil', icon: Icon(x['used'] == true || '${x['used']}' == '1' ? Icons.lock_outline : Icons.delete_outline), onPressed: x['used'] == true || '${x['used']}' == '1' ? null : () => removeShift(x))]),
                   ),
                 )),
               ],

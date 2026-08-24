@@ -8,7 +8,9 @@ class ApiException implements Exception {
   final int status;
   final String? code;
   final String? paymentUrl;
-  ApiException(this.message, this.status, {this.code, this.paymentUrl});
+  final Map<String, dynamic> details;
+  ApiException(this.message, this.status, {this.code, this.paymentUrl, Map<String, dynamic>? details})
+      : details = details ?? const {};
 
   @override
   String toString() => message;
@@ -132,6 +134,7 @@ class ApiClient {
           response.statusCode,
           code: json['code']?.toString(),
           paymentUrl: json['payment_url']?.toString(),
+          details: json,
         );
         if (response.statusCode == 402 &&
             (error.code == 'PAYMENT_REQUIRED_EMPLOYEE' ||

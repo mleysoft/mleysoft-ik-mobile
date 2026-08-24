@@ -127,10 +127,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> login(String email, String password) async {
+    final device = await DeviceIdentity.collect();
     final r = await api.request('auth/login', method: 'POST', data: {
       'email': email,
       'password': password,
-      'device_name': 'Flutter Native V99',
+      'device_name': 'Flutter Native V101',
+      ...device,
     });
     await api.saveToken(r['token']);
     await api.storage.write(key:'session_mode',value:'admin');
@@ -139,6 +141,36 @@ class AppState extends ChangeNotifier {
     companies = (r['companies'] ?? []) as List;
     if (r['company'] != null) company = Map<String, dynamic>.from(r['company']);
     locked = false;
+    notifyListeners();
+    return r['requires_company'] == true;
+  }
+
+  Future<void> requestManagerDeviceTransfer(String email, String password) async {
+    final device = await DeviceIdentity.collect();
+    await api.request('auth/request-device-transfer', method: 'POST', data: {
+      'email': email,
+      'password': password,
+      'device_name': 'Flutter Native V101',
+      ...device,
+    });
+  }
+
+  Future<bool> confirmManagerDeviceTransfer(String email, String password, String code) async {
+    final device = await DeviceIdentity.collect();
+    final r = await api.request('auth/confirm-device-transfer', method: 'POST', data: {
+      'email': email,
+      'password': password,
+      'code': code,
+      'device_name': 'Flutter Native V101',
+      ...device,
+    });
+    await api.saveToken(r['token']);
+    await api.storage.write(key:'session_mode',value:'admin');
+    employeeMode=false;employee=null;
+    user = Map<String,dynamic>.from(r['user']);
+    companies = (r['companies'] ?? []) as List;
+    company = r['company'] == null ? null : Map<String,dynamic>.from(r['company']);
+    locked=false;
     notifyListeners();
     return r['requires_company'] == true;
   }
@@ -162,10 +194,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> resetPassword(String resetToken, String newPassword) async {
+    final device = await DeviceIdentity.collect();
     final r = await api.request('auth/reset-password', method: 'POST', data: {
       'token': resetToken,
       'password': newPassword,
-      'device_name': 'Flutter Native V99',
+      'device_name': 'Flutter Native V101',
+      ...device,
     });
     await api.saveToken(r['token']);
     user = Map<String, dynamic>.from(r['user']);
@@ -187,6 +221,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    if (api.token != null && !employeeMode) {
+      try { await api.request('auth/logout', method: 'POST'); } catch (_) {}
+    } else if (api.token != null && employeeMode) {
+      try { await api.request('employee-auth/logout', method: 'POST'); } catch (_) {}
+    }
     await api.saveToken(null);
     await api.storage.delete(key: 'session_mode');
     employeeMode = false;

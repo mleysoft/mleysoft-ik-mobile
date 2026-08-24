@@ -100,6 +100,22 @@ class _LeavesScreenState extends State<LeavesScreen> {
                 const SizedBox(height: 14),
                 SizedBox(width: double.infinity, child: FilledButton(onPressed: () async {
                   if (eid == null) { snack(context, 'Personel seçin.', error: true); return; }
+                  dynamic selectedEmployee;
+                  for (final x in emps) {
+                    if (int.tryParse('${x['id']}') == eid) { selectedEmployee = x; break; }
+                  }
+                  if (selectedEmployee != null) {
+                    final employmentStart = DateTime.tryParse('${selectedEmployee['start_date'] ?? ''}');
+                    final employmentEnd = DateTime.tryParse('${selectedEmployee['end_date'] ?? ''}');
+                    final dStart = DateTime(start.year, start.month, start.day);
+                    final dEnd = DateTime(end.year, end.month, end.day);
+                    if (employmentStart != null && dStart.isBefore(DateTime(employmentStart.year, employmentStart.month, employmentStart.day))) {
+                      snack(context, 'İzin başlangıcı personelin işe başlama tarihinden önce olamaz.', error: true); return;
+                    }
+                    if (employmentEnd != null && dEnd.isAfter(DateTime(employmentEnd.year, employmentEnd.month, employmentEnd.day))) {
+                      snack(context, 'İzin bitişi personelin işten ayrılma tarihinden sonra olamaz.', error: true); return;
+                    }
+                  }
                   try {
                     final data = {'id': edit?['id'], 'employee_id': eid, 'leave_type': type, 'start_date': DateFormat('yyyy-MM-dd').format(start), 'end_date': DateFormat('yyyy-MM-dd').format(end), 'description': description.text.trim()};
                     await widget.state.api.request('leave', method: edit == null ? 'POST' : 'PUT', data: data, query: edit == null ? null : {'id': edit!['id']});
