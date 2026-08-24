@@ -155,7 +155,7 @@ if info_plist.exists():
     info["NSCameraUsageDescription"] = "MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır."
     info["NSPhotoLibraryUsageDescription"] = "MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir."
     info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
-    # V111: Eski Always açıklamalarını temizle; aşağıda App Store statik taraması için kontrollü açıklama yeniden yazılır.
+    # V112: Eski Always açıklamalarını temizle; aşağıda App Store statik taraması için kontrollü açıklama yeniden yazılır.
     info.pop("NSLocationAlwaysUsageDescription", None)
     info.pop("NSLocationAlwaysAndWhenInUseUsageDescription", None)
     info["NSFaceIDUsageDescription"] = "MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir."
@@ -164,7 +164,7 @@ if info_plist.exists():
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-# V111: geolocator yalnızca QR işlemi sırasında foreground konum kullanır.
+# V112: geolocator yalnızca QR işlemi sırasında foreground konum kullanır.
 # geolocator resmi önerisi: Always API kodunu sadece geolocator_apple target'ında derlemeden çıkar.
 podfile = ios / "Podfile"
 if podfile.exists():
@@ -177,12 +177,12 @@ if podfile.exists():
         needle = "    flutter_additional_ios_build_settings(target)\n"
         addition = "    flutter_additional_ios_build_settings(target)\n    if target.name == 'geolocator_apple'\n      target.build_configurations.each do |config|\n        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'BYPASS_PERMISSION_LOCATION_ALWAYS=1']\n        unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('BYPASS_PERMISSION_LOCATION_ALWAYS=1')\n          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BYPASS_PERMISSION_LOCATION_ALWAYS=1'\n        end\n      end\n    end\n"
         if needle not in pod:
-            raise SystemExit("V111 ERROR: Podfile post_install yapisi bulunamadi.")
+            raise SystemExit("V112 ERROR: Podfile post_install yapisi bulunamadi.")
         pod = pod.replace(needle, addition, 1)
     podfile.write_text(pod, encoding="utf-8")
     verify_pod = podfile.read_text(encoding="utf-8")
     if marker not in verify_pod or 'BYPASS_PERMISSION_LOCATION_ALWAYS=1' not in verify_pod:
-        raise SystemExit("V111 ERROR: geolocator_apple Always permission bypass uygulanamadi.")
+        raise SystemExit("V112 ERROR: geolocator_apple Always permission bypass uygulanamadi.")
 
 # Apple 90683 taraması bazı geolocator sürümlerinde binary API referansını yine de görebiliyor.
 # Uygulama requestAlwaysAuthorization çağırmaz; bu purpose string sadece App Store statik taramasını
@@ -192,12 +192,35 @@ if info_plist.exists():
         info = plistlib.load(f)
     info["NSLocationAlwaysAndWhenInUseUsageDescription"] = (
         "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda "
-        "okutulduğunu doğrulamak için konum bilgisini kullanır. Uygulama arka planda sürekli konum takibi yapmaz."
+        "okutulduğunu doğrulamak için konum bilgisini kullanır. Konum yalnızca QR doğrulaması için işlenir; "
+        "uygulama arka planda sürekli konum takibi yapmaz."
     )
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK V111: geolocator target-specific bypass + App Store 90683 purpose string uygulandi.")
+# V112: Aynı purpose string'i Xcode build setting seviyesinde de zorunlu kıl.
+# Böylece archive aşamasında final Runner.app Info.plist oluşturulurken anahtar kaybolamaz.
+if pbx.exists():
+    t = pbx.read_text(encoding="utf-8")
+    purpose_setting = 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konum bilgisini kullanır. Konum yalnızca QR doğrulaması için işlenir; uygulama arka planda sürekli konum takibi yapmaz.";'
+    if 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription' not in t:
+        # Runner build configuration'larının her birine Bundle ID satırının hemen ardından ekle.
+        t = t.replace(
+            'PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;',
+            'PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;\n\t\t\t\t' + purpose_setting
+        )
+    pbx.write_text(t, encoding="utf-8")
+    if 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription' not in pbx.read_text(encoding="utf-8"):
+        raise SystemExit("V112 ERROR: Xcode purpose-string build setting eklenemedi.")
+
+# Kaynak Info.plist'i de build öncesi kesin doğrula.
+if info_plist.exists():
+    with info_plist.open("rb") as f:
+        final_source_info = plistlib.load(f)
+    if not final_source_info.get("NSLocationAlwaysAndWhenInUseUsageDescription"):
+        raise SystemExit("V112 ERROR: NSLocationAlwaysAndWhenInUseUsageDescription kaynak Info.plist'te yok.")
+
+print("iOS MleySoft İK V112: geolocator bypass + plist + Xcode build-setting 90683 koruması uygulandi.")
 
 
 # V94 hard verification: App Store branding must not fall back to Flutter defaults.

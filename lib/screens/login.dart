@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'forgot_password.dart';
 import 'register_company.dart';
+import 'in_app_browser.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.state});
@@ -235,6 +236,16 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
   }
 
 
+
+  Future<void> openLegal(String path, String title) async {
+    final url = '${widget.state.api.publicRoot}/${path.replaceFirst(RegExp(r'^/+'), '')}';
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => InAppBrowserScreen(url: url, title: title)),
+    );
+  }
+
   Future<void> employeeGo() async {
     if(employeeBusy || employeeCode.text.trim().isEmpty) return;
     setState(()=>employeeBusy=true);
@@ -292,6 +303,44 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                   SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RegisterCompanyScreen(state:widget.state))),icon:const Icon(Icons.business_outlined,size:18),label:const Text('Yeni Firma Kaydı'))),
                   const SizedBox(height:10),
                   const Text('Firma kaydınızı ve ödeme işlemlerinizi uygulamadan çıkmadan tamamlayabilirsiniz.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 4,
+                    runSpacing: 2,
+                    children: [
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          minimumSize: const Size(0, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => openLegal('privacy.php', 'Gizlilik Politikası'),
+                        child: const Text('Gizlilik Politikası', style: TextStyle(fontSize: 9.5, color: MTheme.muted)),
+                      ),
+                      const Text('·', style: TextStyle(fontSize: 9, color: MTheme.muted)),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          minimumSize: const Size(0, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => openLegal('kvkk.php', 'KVKK Aydınlatma'),
+                        child: const Text('KVKK', style: TextStyle(fontSize: 9.5, color: MTheme.muted)),
+                      ),
+                      const Text('·', style: TextStyle(fontSize: 9, color: MTheme.muted)),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          minimumSize: const Size(0, 28),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => openLegal('terms.php', 'Kullanım Koşulları'),
+                        child: const Text('Kullanım Koşulları', style: TextStyle(fontSize: 9.5, color: MTheme.muted)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

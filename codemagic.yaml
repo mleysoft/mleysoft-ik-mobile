@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V111
+    name: MleySoft IK iOS TestFlight V112
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -21,8 +21,23 @@ workflows:
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Build IPA
-        script: flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
+      - name: Verify iOS privacy purpose strings
+        script: |
+          /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" ios/Runner/Info.plist
+          grep -q "INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription" ios/Runner.xcodeproj/project.pbxproj
+      - name: Build IPA and verify final Runner Info.plist
+        script: |
+          flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
+          IPA_FILE=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
+          test -n "$IPA_FILE"
+          rm -rf /tmp/mleysoft_ipa_verify && mkdir -p /tmp/mleysoft_ipa_verify
+          unzip -q "$IPA_FILE" -d /tmp/mleysoft_ipa_verify
+          FINAL_PLIST=$(find /tmp/mleysoft_ipa_verify/Payload -maxdepth 2 -name Info.plist | head -1)
+          test -n "$FINAL_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$FINAL_PLIST"
+          /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" "$FINAL_PLIST"
+          echo "V112 VERIFY OK: final IPA contains both location purpose strings."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
