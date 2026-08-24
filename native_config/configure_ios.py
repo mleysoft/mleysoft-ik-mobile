@@ -164,63 +164,21 @@ if info_plist.exists():
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-# V112: geolocator yalnızca QR işlemi sırasında foreground konum kullanır.
-# geolocator resmi önerisi: Always API kodunu sadece geolocator_apple target'ında derlemeden çıkar.
-podfile = ios / "Podfile"
-if podfile.exists():
-    pod = podfile.read_text(encoding="utf-8")
-    # Önce V110'un genel hedeflere eklediği bloğu temizle.
-    old = "    flutter_additional_ios_build_settings(target)\n    target.build_configurations.each do |config|\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BYPASS_PERMISSION_LOCATION_ALWAYS=1'\n    end\n"
-    pod = pod.replace(old, "    flutter_additional_ios_build_settings(target)\n")
-    marker = "if target.name == 'geolocator_apple'"
-    if marker not in pod:
-        needle = "    flutter_additional_ios_build_settings(target)\n"
-        addition = "    flutter_additional_ios_build_settings(target)\n    if target.name == 'geolocator_apple'\n      target.build_configurations.each do |config|\n        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'BYPASS_PERMISSION_LOCATION_ALWAYS=1']\n        unless config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'].include?('BYPASS_PERMISSION_LOCATION_ALWAYS=1')\n          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BYPASS_PERMISSION_LOCATION_ALWAYS=1'\n        end\n      end\n    end\n"
-        if needle not in pod:
-            raise SystemExit("V112 ERROR: Podfile post_install yapisi bulunamadi.")
-        pod = pod.replace(needle, addition, 1)
-    podfile.write_text(pod, encoding="utf-8")
-    verify_pod = podfile.read_text(encoding="utf-8")
-    if marker not in verify_pod or 'BYPASS_PERMISSION_LOCATION_ALWAYS=1' not in verify_pod:
-        raise SystemExit("V112 ERROR: geolocator_apple Always permission bypass uygulanamadi.")
-
-# Apple 90683 taraması bazı geolocator sürümlerinde binary API referansını yine de görebiliyor.
-# Uygulama requestAlwaysAuthorization çağırmaz; bu purpose string sadece App Store statik taramasını
-# güvenli şekilde karşılar. Kullanıcıya gösterilen gerçek izin When-In-Use iznidir.
+# V113: iOS konumu yalnızca native CoreLocation + requestWhenInUseAuthorization ile alınır.
+# geolocator_apple tamamen kaldırılmıştır; Always Location API binary içinde bulunmamalıdır.
 if info_plist.exists():
     with info_plist.open("rb") as f:
         info = plistlib.load(f)
-    info["NSLocationAlwaysAndWhenInUseUsageDescription"] = (
+    info["NSLocationWhenInUseUsageDescription"] = (
         "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda "
-        "okutulduğunu doğrulamak için konum bilgisini kullanır. Konum yalnızca QR doğrulaması için işlenir; "
-        "uygulama arka planda sürekli konum takibi yapmaz."
+        "okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
     )
+    info.pop("NSLocationAlwaysUsageDescription", None)
+    info.pop("NSLocationAlwaysAndWhenInUseUsageDescription", None)
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-# V112: Aynı purpose string'i Xcode build setting seviyesinde de zorunlu kıl.
-# Böylece archive aşamasında final Runner.app Info.plist oluşturulurken anahtar kaybolamaz.
-if pbx.exists():
-    t = pbx.read_text(encoding="utf-8")
-    purpose_setting = 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konum bilgisini kullanır. Konum yalnızca QR doğrulaması için işlenir; uygulama arka planda sürekli konum takibi yapmaz.";'
-    if 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription' not in t:
-        # Runner build configuration'larının her birine Bundle ID satırının hemen ardından ekle.
-        t = t.replace(
-            'PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;',
-            'PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;\n\t\t\t\t' + purpose_setting
-        )
-    pbx.write_text(t, encoding="utf-8")
-    if 'INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription' not in pbx.read_text(encoding="utf-8"):
-        raise SystemExit("V112 ERROR: Xcode purpose-string build setting eklenemedi.")
-
-# Kaynak Info.plist'i de build öncesi kesin doğrula.
-if info_plist.exists():
-    with info_plist.open("rb") as f:
-        final_source_info = plistlib.load(f)
-    if not final_source_info.get("NSLocationAlwaysAndWhenInUseUsageDescription"):
-        raise SystemExit("V112 ERROR: NSLocationAlwaysAndWhenInUseUsageDescription kaynak Info.plist'te yok.")
-
-print("iOS MleySoft İK V112: geolocator bypass + plist + Xcode build-setting 90683 koruması uygulandi.")
+print("iOS MleySoft İK V113: native When-In-Use CoreLocation yapılandırıldı; Always Location kaldırıldı.")
 
 
 # V94 hard verification: App Store branding must not fall back to Flutter defaults.
@@ -238,7 +196,111 @@ if info_plist.exists():
 
 print("V100 VERIFY OK: Runner product name + MleySoft İK display name + bundle id configured.")
 
-# V108: Native iOS application icon unread badge bridge.
+# V113: iOS badge + native foreground-only CoreLocation bridge.
+# DİKKAT: requestAlwaysAuthorization bilinçli olarak kullanılmaz.
 app_delegate = runner / "AppDelegate.swift"
-app_delegate.write_text('''import Flutter\nimport UIKit\n\n@main\n@objc class AppDelegate: FlutterAppDelegate {\n  override func application(\n    _ application: UIApplication,\n    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?\n  ) -> Bool {\n    GeneratedPluginRegistrant.register(with: self)\n    if let controller = window?.rootViewController as? FlutterViewController {\n      let badgeChannel = FlutterMethodChannel(name: "com.mleysoft.ik/badge", binaryMessenger: controller.binaryMessenger)\n      badgeChannel.setMethodCallHandler { call, result in\n        if call.method == "setBadge", let args = call.arguments as? [String: Any], let count = args["count"] as? Int {\n          application.applicationIconBadgeNumber = max(0, count)\n          result(true)\n        } else {\n          result(FlutterMethodNotImplemented)\n        }\n      }\n    }\n    return super.application(application, didFinishLaunchingWithOptions: launchOptions)\n  }\n}\n''', encoding="utf-8")
-print("V108 iOS unread app badge bridge configured.")
+app_delegate.write_text(r"""import Flutter
+import UIKit
+import CoreLocation
+
+final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
+  private let manager = CLLocationManager()
+  private var pending: FlutterResult?
+
+  override init() {
+    super.init()
+    manager.delegate = self
+    manager.desiredAccuracy = kCLLocationAccuracyBest
+  }
+
+  func getCurrentLocation(_ result: @escaping FlutterResult) {
+    guard CLLocationManager.locationServicesEnabled() else {
+      result(FlutterError(code: "LOCATION_SERVICE_DISABLED", message: "Konum servisi kapalı.", details: nil))
+      return
+    }
+    if pending != nil {
+      result(FlutterError(code: "LOCATION_BUSY", message: "Konum bilgisi alınıyor.", details: nil))
+      return
+    }
+    pending = result
+    switch manager.authorizationStatus {
+    case .notDetermined:
+      manager.requestWhenInUseAuthorization()
+    case .authorizedWhenInUse, .authorizedAlways:
+      manager.requestLocation()
+    case .denied, .restricted:
+      finish(error: FlutterError(code: "LOCATION_PERMISSION_DENIED_FOREVER", message: "Konum izni gerekli.", details: nil))
+    @unknown default:
+      finish(error: FlutterError(code: "LOCATION_PERMISSION_DENIED", message: "Konum izni gerekli.", details: nil))
+    }
+  }
+
+  func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+    guard pending != nil else { return }
+    switch manager.authorizationStatus {
+    case .authorizedWhenInUse, .authorizedAlways:
+      manager.requestLocation()
+    case .denied, .restricted:
+      finish(error: FlutterError(code: "LOCATION_PERMISSION_DENIED", message: "Konum izni gerekli.", details: nil))
+    default:
+      break
+    }
+  }
+
+  func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    guard let location = locations.last else {
+      finish(error: FlutterError(code: "LOCATION_ERROR", message: "Konum bilgisi alınamadı.", details: nil))
+      return
+    }
+    let result = pending
+    pending = nil
+    result?(["latitude": location.coordinate.latitude, "longitude": location.coordinate.longitude, "accuracy": location.horizontalAccuracy])
+  }
+
+  func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    finish(error: FlutterError(code: "LOCATION_ERROR", message: error.localizedDescription, details: nil))
+  }
+
+  private func finish(error: FlutterError) {
+    let result = pending
+    pending = nil
+    result?(error)
+  }
+}
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  private var locationBridge: MleyLocationBridge?
+
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    if let controller = window?.rootViewController as? FlutterViewController {
+      let badgeChannel = FlutterMethodChannel(name: "com.mleysoft.ik/badge", binaryMessenger: controller.binaryMessenger)
+      badgeChannel.setMethodCallHandler { call, result in
+        if call.method == "setBadge", let args = call.arguments as? [String: Any], let count = args["count"] as? Int {
+          application.applicationIconBadgeNumber = max(0, count)
+          result(true)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+
+      let bridge = MleyLocationBridge()
+      locationBridge = bridge
+      let locationChannel = FlutterMethodChannel(name: "com.mleysoft.ik/location", binaryMessenger: controller.binaryMessenger)
+      locationChannel.setMethodCallHandler { call, result in
+        if call.method == "getCurrentLocation" {
+          bridge.getCurrentLocation(result)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+""", encoding="utf-8")
+print("V113 iOS native foreground location + unread app badge bridge configured.")

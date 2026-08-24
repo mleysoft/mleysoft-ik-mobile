@@ -13,6 +13,7 @@ import 'screens/billing_native.dart';
 import 'widgets/connectivity_banner.dart';
 import 'screens/notification_permission.dart';
 import 'screens/reset_password.dart';
+import 'screens/forced_update.dart';
 import 'screens/shell.dart';
 import 'widgets/branded_loading.dart';
 
@@ -178,6 +179,8 @@ class _MleyAppState extends State<MleyApp> {
     Widget home;
     if (!state.ready || !notificationIntroLoaded) {
       home = const MleySplashScreen();
+    } else if (state.updateRequired) {
+      home = ForcedUpdateScreen(state: state);
     } else if (!notificationIntroDone) {
       home = NotificationPermissionScreen(onAllow: _allowNotifications, onLater: _skipNotifications);
     } else if (state.locked && state.hasStoredSession) {

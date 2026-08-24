@@ -1,0 +1,9 @@
+MleySoft İK V113
+- iOS App Store 90683 kök çözümü: geolocator/geolocator_apple bağımlılığı tamamen kaldırıldı.
+- iOS QR konumu native CoreLocation ile yalnız requestWhenInUseAuthorization kullanılarak alınıyor.
+- Android QR konumu native Android LocationManager + MethodChannel üzerinden alınıyor.
+- Final IPA içinde geolocator veya requestAlwaysAuthorization referansı bulunursa Codemagic build otomatik duruyor.
+- Android ve iOS için sunucu kontrollü zorunlu minimum build sistemi eklendi.
+- Minimum build altında kalan V113 ve sonrası uygulamalar tam ekran Güncelleme Gerekli ekranında bloklanıyor.
+- Admin > Mobil Uygulama ekranına Android/iOS minimum build, mağaza URL ve zorunlu güncelleme mesajı eklendi.
+- Mobil sürüm 1.6.24+112.

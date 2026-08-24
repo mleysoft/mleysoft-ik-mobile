@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:geolocator/geolocator.dart';
+import '../core/native_location_service.dart';
 import '../core/app_state.dart';
 import '../core/notification_service.dart';
 import '../core/theme.dart';
@@ -147,39 +147,27 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
       final security = Map<String, dynamic>.from(data?['qr_security'] ?? {});
       final payload = <String, dynamic>{'qr': code};
       if (security['geofence_enabled'] == true) {
-        var permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          if (!mounted) return;
-          final continueWithLocation = await showDialog<bool>(
-            context: context,
-            builder: (c) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              icon: const Icon(Icons.location_on_outlined, size: 42, color: MTheme.ink),
-              title: const Text('Konum Doğrulaması'),
-              content: const Text(
-                'Firmanız QR giriş/çıkış işlemlerinde işyeri konum doğrulamasını etkinleştirmiş. '
-                'Konumunuz yalnızca QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için, '
-                'bu işlem sırasında alınır. Arka planda konum takibi yapılmaz.',
-                style: TextStyle(height: 1.45),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
-                FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Konuma İzin Ver')),
-              ],
+        if (!mounted) return;
+        final continueWithLocation = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: const Icon(Icons.location_on_outlined, size: 42, color: MTheme.ink),
+            title: const Text('Konum Doğrulaması'),
+            content: const Text(
+              'Firmanız QR giriş/çıkış işlemlerinde işyeri konum doğrulamasını etkinleştirmiş. '
+              'Konumunuz yalnızca QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için bu işlem sırasında alınır. '
+              'Arka planda konum takibi yapılmaz.',
+              style: TextStyle(height: 1.45),
             ),
-          ) ?? false;
-          if (!continueWithLocation) {
-            throw Exception('Konum izni verilmeden işyeri konumu doğrulanan QR giriş/çıkış işlemi yapılamaz.');
-          }
-          permission = await Geolocator.requestPermission();
-        }
-        if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-          throw Exception('Firmanız QR işlemlerinde işyeri konum doğrulaması kullanıyor. Giriş/çıkış için konum izni vermelisiniz.');
-        }
-        if (!await Geolocator.isLocationServiceEnabled()) {
-          throw Exception('Konum servisi kapalı. QR okutmak için telefonunuzun konum servisini açın.');
-        }
-        final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 12));
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Devam Et')),
+            ],
+          ),
+        ) ?? false;
+        if (!continueWithLocation) throw Exception('Konum doğrulaması yapılmadan QR giriş/çıkış işlemi tamamlanamaz.');
+        final pos = await NativeLocationService.currentPosition();
         payload.addAll({'latitude': pos.latitude, 'longitude': pos.longitude, 'accuracy': pos.accuracy});
       }
       final r = await widget.state.api.request(

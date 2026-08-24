@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'api.dart';
 import 'biometric_service.dart';
@@ -24,6 +25,43 @@ class AppState extends ChangeNotifier {
   String? accessPaymentUrl;
   bool paymentRequired = false;
   Map<String,dynamic>? subscription;
+  static const int currentBuild = 112;
+  static const String currentVersion = '1.6.24';
+  bool updateRequired = false;
+  int minimumRequiredBuild = 0;
+  String updateStoreUrl = '';
+  String updateMessage = 'MleySoft İK uygulamasının yeni bir sürümü yayınlandı. Devam etmek için uygulamayı güncellemeniz gerekiyor.';
+
+  Future<void> _checkRequiredUpdate() async {
+    final platform = Platform.isIOS ? 'ios' : 'android';
+    final minKey = 'minimum_build_$platform';
+    final urlKey = 'store_url_$platform';
+    try {
+      final cached = int.tryParse(await api.storage.read(key: minKey) ?? '') ?? 0;
+      final cachedUrl = await api.storage.read(key: urlKey) ?? '';
+      minimumRequiredBuild = cached;
+      updateStoreUrl = cachedUrl;
+      updateRequired = currentBuild < cached;
+    } catch (_) {}
+    try {
+      final r = await api.request('app/version', query: {'platform': platform, 'build': currentBuild});
+      minimumRequiredBuild = int.tryParse('${r['minimum_build'] ?? 0}') ?? 0;
+      updateStoreUrl = '${r['store_url'] ?? ''}';
+      updateMessage = '${r['message'] ?? updateMessage}';
+      updateRequired = currentBuild < minimumRequiredBuild;
+      try {
+        await api.storage.write(key: minKey, value: '$minimumRequiredBuild');
+        await api.storage.write(key: urlKey, value: updateStoreUrl);
+      } catch (_) {}
+    } catch (_) {
+      // Çevrimdışıyken daha önce alınmış minimum sürüm kuralı korunur.
+    }
+  }
+
+  Future<void> recheckRequiredUpdate() async {
+    await _checkRequiredUpdate();
+    notifyListeners();
+  }
 
 
   Future<void> _handlePaymentRequired(ApiException error) async {
@@ -61,6 +99,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> bootstrap() async {
     try {
+      await _checkRequiredUpdate();
+      if (updateRequired) return;
       await api.loadToken();
       try {
         employeeMode = (await api.storage.read(key: 'session_mode')) == 'employee';
