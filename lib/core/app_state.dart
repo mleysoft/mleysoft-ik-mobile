@@ -131,7 +131,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/login', method: 'POST', data: {
       'email': email,
       'password': password,
-      'device_name': 'Flutter Native V101',
+      'device_name': 'Flutter Native V102',
       ...device,
     });
     await api.saveToken(r['token']);
@@ -150,7 +150,7 @@ class AppState extends ChangeNotifier {
     await api.request('auth/request-device-transfer', method: 'POST', data: {
       'email': email,
       'password': password,
-      'device_name': 'Flutter Native V101',
+      'device_name': 'Flutter Native V102',
       ...device,
     });
   }
@@ -161,7 +161,7 @@ class AppState extends ChangeNotifier {
       'email': email,
       'password': password,
       'code': code,
-      'device_name': 'Flutter Native V101',
+      'device_name': 'Flutter Native V102',
       ...device,
     });
     await api.saveToken(r['token']);
@@ -198,7 +198,7 @@ class AppState extends ChangeNotifier {
     final r = await api.request('auth/reset-password', method: 'POST', data: {
       'token': resetToken,
       'password': newPassword,
-      'device_name': 'Flutter Native V101',
+      'device_name': 'Flutter Native V102',
       ...device,
     });
     await api.saveToken(r['token']);

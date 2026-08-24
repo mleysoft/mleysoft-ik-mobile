@@ -154,7 +154,7 @@ if info_plist.exists():
         info = plistlib.load(f)
     info["NSCameraUsageDescription"] = "MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır."
     info["NSPhotoLibraryUsageDescription"] = "MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir."
-    info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, konum gerektiren özelliklerde konum bilginizi yalnızca uygulamayı kullanırken kullanır."
+    info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
     info["NSFaceIDUsageDescription"] = "MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir."
     info["CFBundleDisplayName"] = "MleySoft İK"
     info["CFBundleName"] = "Runner"

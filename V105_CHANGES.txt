@@ -1,0 +1,11 @@
+MleySoft İK V105 – Mobil Konum / Store Privacy Hazırlığı
+
+- Android QR konum doğrulaması için ACCESS_FINE_LOCATION ve ACCESS_COARSE_LOCATION izinleri doğrulandı ve korunuyor.
+- iOS NSLocationWhenInUseUsageDescription metni mağaza incelemesine uygun şekilde netleştirildi:
+  Konum, personel giriş/çıkış QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için kullanılır.
+- Konum izni istenmeden önce uygulama içinde açıklayıcı ekran eklendi.
+- Açıklamada konumun yalnızca QR işlemi sırasında alındığı ve arka planda konum takibi yapılmadığı açıkça belirtilir.
+- Gizlilik Politikası'na Konum verisi ve QR giriş/çıkış doğrulaması bölümü eklendi.
+- Release doğrulama betiği güncellendi; Android izinlerini, iOS kullanım açıklamasını ve QR konum izin akışını kontrol eder.
+- Mobil sürüm: 1.6.16+104
+- Package / Bundle ID: com.mleysoft.ik

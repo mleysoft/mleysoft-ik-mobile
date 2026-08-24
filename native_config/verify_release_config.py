@@ -1,34 +1,47 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import re, sys
+import sys
 
 root = Path(__file__).resolve().parents[1]
 errors = []
+expected_version = "1.6.16+104"
+location_text = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
 
-# pubspec version
 pub = (root / "pubspec.yaml").read_text(encoding="utf-8")
-if "version: 1.6.8+92" not in pub:
-    errors.append("pubspec version beklenen 1.6.8+92 degil")
+if f"version: {expected_version}" not in pub:
+    errors.append(f"pubspec version beklenen {expected_version} degil")
 
-# Android generated configuration source
 android_cfg = (root / "native_config" / "configure_android.ps1").read_text(encoding="utf-8")
-if 'namespace = "com.mleysoft.ik"' not in android_cfg:
-    errors.append("Android namespace com.mleysoft.ik degil")
-if 'applicationId = "com.mleysoft.ik"' not in android_cfg:
-    errors.append("Android applicationId com.mleysoft.ik degil")
+for required in [
+    'namespace = "com.mleysoft.ik"',
+    'applicationId = "com.mleysoft.ik"',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_COARSE_LOCATION',
+    'android.permission.CAMERA',
+]:
+    if required not in android_cfg:
+        errors.append(f"Android config eksik: {required}")
 
-# iOS configuration source
 ios_cfg = (root / "native_config" / "configure_ios.py").read_text(encoding="utf-8")
-required = [
+for item in [
     "com.mleysoft.ik",
     "NSCameraUsageDescription",
     "NSPhotoLibraryUsageDescription",
     "NSLocationWhenInUseUsageDescription",
     "NSFaceIDUsageDescription",
-]
-for item in required:
+    location_text,
+]:
     if item not in ios_cfg:
         errors.append(f"iOS config eksik: {item}")
+
+plist_add = (root / "native_config" / "InfoPlist.additions.xml").read_text(encoding="utf-8")
+if location_text not in plist_add:
+    errors.append("InfoPlist.additions.xml konum amaci QR/isyeri dogrulamasi olarak acik degil")
+
+portal = (root / "lib" / "screens" / "employee_portal.dart").read_text(encoding="utf-8")
+for item in ["Geolocator.requestPermission", "Arka planda konum takibi yapılmaz", "Konum Doğrulaması"]:
+    if item not in portal:
+        errors.append(f"Mobil konum izin akisi eksik: {item}")
 
 if errors:
     print("RELEASE CONFIG ERROR:")
@@ -38,4 +51,5 @@ if errors:
 
 print("Release config OK")
 print("Package/Bundle ID: com.mleysoft.ik")
-print("Version: 1.6.8+92")
+print(f"Version: {expected_version}")
+print("Location: QR attendance workplace verification, foreground only")

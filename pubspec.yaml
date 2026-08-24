@@ -1,5 +1,5 @@
 name: mleysoft_ik
-version: 1.6.12+100
+version: 1.6.16+104
 publish_to: none
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -24,6 +24,7 @@ dependencies:
   android_id: ^0.4.0
   device_info_plus: ^11.5.0
   mobile_scanner: ^7.1.2
+  geolocator: ^13.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

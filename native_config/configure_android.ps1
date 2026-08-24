@@ -150,7 +150,9 @@ if (Test-Path $manifest) {
         'android.permission.INTERNET',
         'android.permission.USE_BIOMETRIC',
         'android.permission.POST_NOTIFICATIONS',
-        'android.permission.CAMERA'
+        'android.permission.CAMERA',
+        'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_COARSE_LOCATION'
     )
     foreach ($permissionName in $permissions) {
         if ($m -notmatch [regex]::Escape($permissionName)) {
