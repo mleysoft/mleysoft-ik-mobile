@@ -32,6 +32,7 @@ class NotificationService {
   final ValueNotifier<int?> announcementTapId = ValueNotifier<int?>(null);
   final ValueNotifier<int> unreadAnnouncementCount = ValueNotifier<int>(0);
   bool initialized = false;
+  bool workmanagerInitialized = false;
 
   static const _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -129,8 +130,23 @@ class NotificationService {
     return androidOk && iosOk;
   }
 
+  Future<void> initializeBackgroundScheduler() async {
+    if (workmanagerInitialized) return;
+    try {
+      await Workmanager().initialize(mleysoftBackgroundDispatcher);
+      workmanagerInitialized = true;
+    } catch (e, st) {
+      debugPrint('WorkManager initialize error: $e\n$st');
+    }
+  }
+
   Future<void> configureDailyChecks({required bool employeeMode}) async {
     await initialize();
+    // V115: Giriş anında AppState, main() içindeki asenkron native başlangıçtan önce
+    // buraya gelebiliyordu. Bu durumda registerPeriodicTask sessizce başarısız oluyor ve
+    // uygulama kapalıyken duyuru kontrolü hiç kaydolmuyordu. WorkManager'ı burada da
+    // güvenli biçimde initialize ederek kayıt yarışını ortadan kaldırıyoruz.
+    await initializeBackgroundScheduler();
 
     final now = DateTime.now();
     final hour = employeeMode ? 8 : 14;
@@ -142,7 +158,7 @@ class NotificationService {
         _dailyTaskUniqueName,
         _dailyTaskName,
         frequency: employeeMode ? const Duration(minutes: 15) : const Duration(hours: 24),
-        initialDelay: employeeMode ? const Duration(minutes: 1) : next.difference(now),
+        initialDelay: employeeMode ? Duration.zero : next.difference(now),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
         constraints: Constraints(networkType: NetworkType.connected),
       );

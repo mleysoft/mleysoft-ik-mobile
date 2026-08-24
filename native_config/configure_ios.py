@@ -206,6 +206,7 @@ import CoreLocation
 final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
   private let manager = CLLocationManager()
   private var pending: FlutterResult?
+  private var timeoutWorkItem: DispatchWorkItem?
 
   override init() {
     super.init()
@@ -223,6 +224,13 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
       return
     }
     pending = result
+    timeoutWorkItem?.cancel()
+    let timeout = DispatchWorkItem { [weak self] in
+      guard let self = self, self.pending != nil else { return }
+      self.finish(error: FlutterError(code: "LOCATION_TIMEOUT", message: "Konum bilgisi zamanında alınamadı. Konum servisini kontrol edip tekrar deneyin.", details: nil))
+    }
+    timeoutWorkItem = timeout
+    DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: timeout)
     switch manager.authorizationStatus {
     case .notDetermined:
       manager.requestWhenInUseAuthorization()
@@ -252,6 +260,8 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
       finish(error: FlutterError(code: "LOCATION_ERROR", message: "Konum bilgisi alınamadı.", details: nil))
       return
     }
+    timeoutWorkItem?.cancel()
+    timeoutWorkItem = nil
     let result = pending
     pending = nil
     result?(["latitude": location.coordinate.latitude, "longitude": location.coordinate.longitude, "accuracy": location.horizontalAccuracy])
@@ -262,6 +272,8 @@ final class MleyLocationBridge: NSObject, CLLocationManagerDelegate {
   }
 
   private func finish(error: FlutterError) {
+    timeoutWorkItem?.cancel()
+    timeoutWorkItem = nil
     let result = pending
     pending = nil
     result?(error)

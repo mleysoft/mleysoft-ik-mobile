@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-import 'package:workmanager/workmanager.dart';
 import 'core/api.dart';
 import 'core/app_state.dart';
 import 'core/notification_service.dart';
@@ -38,7 +37,7 @@ Future<void> _initializeNativeServices() async {
   }
 
   try {
-    await Workmanager().initialize(mleysoftBackgroundDispatcher);
+    await NotificationService.instance.initializeBackgroundScheduler();
   } catch (e, st) {
     debugPrint('Workmanager startup error: $e\n$st');
   }

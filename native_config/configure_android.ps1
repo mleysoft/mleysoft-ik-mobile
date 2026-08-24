@@ -144,6 +144,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
+import android.os.Handler
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -153,6 +154,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val locationRequestCode = 9182
     private var pendingLocationResult: MethodChannel.Result? = null
+    private val locationHandler = Handler(Looper.getMainLooper())
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -188,12 +190,15 @@ class MainActivity : FlutterFragmentActivity() {
         }
         try {
             val last = manager.getLastKnownLocation(provider)
-            if (last != null && System.currentTimeMillis() - last.time < 30000) {
+            if (last != null && System.currentTimeMillis() - last.time < 120000) {
                 returnLocation(result, last)
                 return
             }
+            var completed = false
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
+                    if (completed) return
+                    completed = true
                     manager.removeUpdates(this)
                     returnLocation(result, location)
                 }
@@ -202,6 +207,15 @@ class MainActivity : FlutterFragmentActivity() {
                 @Deprecated("Deprecated in Android") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
             }
             manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+            locationHandler.postDelayed({
+                if (!completed) {
+                    completed = true
+                    runCatching { manager.removeUpdates(listener) }
+                    val fallback = runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+                    if (fallback != null) returnLocation(result, fallback)
+                    else result.error("LOCATION_TIMEOUT", "Konum bilgisi zamanında alınamadı. Konum servisini kontrol edip tekrar deneyin.", null)
+                }
+            }, 12000)
         } catch (_: SecurityException) {
             result.error("LOCATION_PERMISSION_DENIED", "Konum izni gerekli.", null)
         } catch (e: Exception) {
