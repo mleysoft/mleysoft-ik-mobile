@@ -155,13 +155,32 @@ if info_plist.exists():
     info["NSCameraUsageDescription"] = "MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır."
     info["NSPhotoLibraryUsageDescription"] = "MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir."
     info["NSLocationWhenInUseUsageDescription"] = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
+    # V110: Uygulama arka planda/sürekli konum kullanmaz. Eski veya oluşturulmuş plistlerde kalmış olabilecek Always anahtarlarını temizle.
+    info.pop("NSLocationAlwaysUsageDescription", None)
+    info.pop("NSLocationAlwaysAndWhenInUseUsageDescription", None)
     info["NSFaceIDUsageDescription"] = "MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir."
     info["CFBundleDisplayName"] = "MleySoft İK"
     info["CFBundleName"] = "Runner"
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 
-print("iOS MleySoft İK V100: com.mleysoft.ik + App Store privacy izinleri + ikon/splash ayarlari uygulandi.")
+# V110: geolocator yalnızca When-In-Use konum kullanır.
+# Apple 90683 uyarısını önlemek için plugin içindeki Always Location API kodunu derlemeden çıkar.
+podfile = ios / "Podfile"
+if podfile.exists():
+    pod = podfile.read_text(encoding="utf-8")
+    marker = "BYPASS_PERMISSION_LOCATION_ALWAYS=1"
+    if marker not in pod:
+        needle = "    flutter_additional_ios_build_settings(target)\n"
+        addition = "    flutter_additional_ios_build_settings(target)\n    target.build_configurations.each do |config|\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BYPASS_PERMISSION_LOCATION_ALWAYS=1'\n    end\n"
+        if needle not in pod:
+            raise SystemExit("V110 ERROR: Podfile post_install yapisi bulunamadi; konum Always bypass uygulanamadi.")
+        pod = pod.replace(needle, addition, 1)
+        podfile.write_text(pod, encoding="utf-8")
+    if marker not in podfile.read_text(encoding="utf-8"):
+        raise SystemExit("V110 ERROR: BYPASS_PERMISSION_LOCATION_ALWAYS uygulanamadi.")
+
+print("iOS MleySoft İK V110: foreground-only konum + App Store 90683 Always Location bypass uygulandi.")
 
 
 # V94 hard verification: App Store branding must not fall back to Flutter defaults.

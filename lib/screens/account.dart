@@ -5,6 +5,7 @@ import '../core/theme.dart';
 import '../widgets/branded_loading.dart';
 import '../widgets/common.dart';
 import 'in_app_browser.dart';
+import 'manager_notifications.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.state});
@@ -156,6 +157,17 @@ class _AccountScreenState extends State<AccountScreen> {
                   }
                 }),
               ])),
+              if (widget.state.company != null) ...[
+                const SizedBox(height: 16),
+                const TechSectionHeader(title: 'Kurumsal İletişim', subtitle: 'Personel duyuru ve bildirim yönetimi'),
+                const SizedBox(height: 9),
+                TechCard(child: actionTile(
+                  Icons.campaign_outlined,
+                  'Personel Bildirimi Gönder',
+                  'Tüm firma, departman veya seçili personele bildirim gönderin',
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => ManagerNotificationsScreen(state: widget.state))),
+                )),
+              ],
               const SizedBox(height: 16),
               const TechSectionHeader(title: 'Yasal ve Gizlilik', subtitle: 'MleySoft İK yasal metinleri'),
               const SizedBox(height: 9),

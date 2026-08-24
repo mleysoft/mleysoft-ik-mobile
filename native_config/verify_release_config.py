@@ -4,7 +4,7 @@ import sys
 
 root = Path(__file__).resolve().parents[1]
 errors = []
-expected_version = "1.6.20+108"
+expected_version = "1.6.21+109"
 location_text = "MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır."
 
 pub = (root / "pubspec.yaml").read_text(encoding="utf-8")
@@ -30,6 +30,7 @@ for item in [
     "NSLocationWhenInUseUsageDescription",
     "NSFaceIDUsageDescription",
     location_text,
+    "BYPASS_PERMISSION_LOCATION_ALWAYS=1",
 ]:
     if item not in ios_cfg:
         errors.append(f"iOS config eksik: {item}")

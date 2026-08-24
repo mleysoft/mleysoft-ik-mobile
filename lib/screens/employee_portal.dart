@@ -307,7 +307,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
                   scanState == 'entry'
                       ? 'İlk okutma giriş olarak kaydedilir.'
                       : scanState == 'waiting_exit'
-                          ? 'Girişiniz kayıtlı. Vardiya başlangıç toleransı dolduktan sonra vardiya bitimine kadar tekrar okutursanız E / Erken Çıkış olarak kaydedilir. Vardiya bitişinde veya sonrasında okutursanız normal çıkış yapılır.'
+                          ? 'Girişiniz kayıtlı. Giriş saatinizden itibaren tanımlı tolerans süresi dolmadan çıkış yapılamaz. Tolerans dolduktan sonra vardiya bitimine kadar tekrar okutursanız E / Erken Çıkış, vardiya bitişinde veya sonrasında normal çıkış kaydedilir.'
                           : 'Bugünkü giriş ve çıkış kaydınız tamamlandı.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 10.5, color: MTheme.muted, height: 1.35),
