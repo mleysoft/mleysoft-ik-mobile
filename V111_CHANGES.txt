@@ -1,0 +1,7 @@
+MleySoft IK V111
+- iOS App Store 90683 konum purpose string uyarisi icin geolocator_apple target-specific BYPASS_PERMISSION_LOCATION_ALWAYS=1 uygulandi.
+- NSLocationAlwaysAndWhenInUseUsageDescription statik App Store tarama uyumlulugu icin eklendi; uygulama arka planda surekli konum takip etmez.
+- Firma yoneticisi Bildirimler sayfasinda Yeni Bildirim butonu tablo ustunde saga hizalandi.
+- Yeni Bildirim popup personel secim alani yeniden duzenlendi; tasma ve bozuk gorunum giderildi.
+- Admin Personel Bildirimleri sayfasinda musteri firma secimi ve Yeni Bildirim aksiyonu tablo alanindan ayrilarak duzenli toolbar icine alindi.
+- Mobil surum: 1.6.22+110
