@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V120
+    name: MleySoft IK iOS TestFlight V121
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -52,7 +52,7 @@ workflows:
           if grep -R -a -q "requestAlwaysAuthorization" /tmp/mleysoft_ipa_verify/Payload; then echo "ERROR: Always Location API reference found in final IPA"; exit 1; fi
           grep -a -q "com.mleysoft.ik/location" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
           grep -a -q "com.mleysoft.ik/permissions" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
-          echo "V120 VERIFY OK: final IPA contains registered native bridge channels, notification permission support and no Always Location API reference."
+          echo "V121 VERIFY OK: final IPA contains registered native bridge channels, notification permission support and no Always Location API reference."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
