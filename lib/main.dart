@@ -6,6 +6,7 @@ import 'core/api.dart';
 import 'core/app_state.dart';
 import 'core/notification_service.dart';
 import 'core/native_notification_permission_service.dart';
+import 'core/push_service.dart';
 import 'core/theme.dart';
 import 'screens/biometric_lock.dart';
 import 'screens/employee_portal.dart';
@@ -32,6 +33,7 @@ Future<void> main() async {
 }
 
 Future<void> _initializeNativeServices() async {
+  try { await PushService.instance.initialize(); } catch (_) {}
   try {
     await NotificationService.instance.initialize();
   } catch (e, st) {

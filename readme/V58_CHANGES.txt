@@ -1,0 +1,17 @@
+MleySoft İK Native V58
+- Açılış ve tüm geçiş bekleme ekranlarında kullanıcının verdiği yatay MleySoft logosu kullanılır.
+- Eski siyah bekleme logosu kaldırıldı.
+- Alt menüde Ana Sayfa -> Giriş olarak değiştirildi.
+- Dashboard Bu Ay bölümü koyu kurumsal panel + ikonlu metrik kartları olarak yeniden tasarlandı.
+- Dashboard Doğum Günü alanı kartlı, sayılı ve personel listeli profesyonel tasarıma çevrildi.
+- Android launcher için MleySoft markasına uyumlu yeni MleySoft İK ikonu eklendi.
+- Android 12+ native splash ekranı da yeni MleySoft İK ikon/markasıyla ayarlandı.
+- Puantaj personel araması yazdıkça anlık filtrelenir; arama tuşuna gerek yoktur.
+- Maaş > Avans > Ödeme Yöntemi dropdown overflow düzeltildi.
+- Maaş ve Avans personel seçimlerinde ad soyad / personel no araması vardır.
+- İzin yeni kayıt ekranında personel seçimi aramalı seçim penceresine dönüştürüldü.
+- Login altına Yeni Başvuru butonu eklendi; yalnızca harici tarayıcıda https://mleysoft.com/system/ik/ açılır.
+- Uygulama içinde satın alma veya yeni firma kaydı yoktur.
+- Günlük İK arka plan kontrolü eklendi: yaklaşık 14:00'te eksik puantaj ve doğum günü kontrolü.
+- Eksik puantaj varsa Puantaj Hatırlatması, doğum günü varsa Doğum Günü bildirimi gönderilir.
+- REST API'ye notifications/daily endpoint'i eklendi.

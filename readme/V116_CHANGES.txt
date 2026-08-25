@@ -1,0 +1,8 @@
+V116
+
+- Android launcher ikonunun Samsung ve adaptive icon maskelerinde üst-alt siyah/kırpılmış görünmesi düzeltildi.
+- Adaptive icon arka planı beyaz yapıldı.
+- Foreground logo Android güvenli alanına küçültülerek şeffaf canvas üzerinde ortalandı.
+- mdpi/hdpi/xhdpi/xxhdpi/xxxhdpi legacy launcher ikonları güvenli kenar payı ile yeniden oluşturuldu.
+- V115 içindeki QR, maaş/avans ve bildirim düzenlemeleri aynen korunur.
+- Mobil sürüm 1.6.27+115.

@@ -1,0 +1,11 @@
+MleySoft İK V98 – Android/iOS Build Fix
+
+- local_auth 2.3.0 ile uyumsuz LocalAuthException tipi kaldırıldı.
+- Android NDK 28.2.13676358 olarak ayarlandı.
+- jni eklentisinin NDK gereksinimi karşılandı.
+- build_playstore_aab.bat artık prepare_android_v98.bat kullanır.
+- V96/V97 ikon, MleySoft İK adı, com.mleysoft.ik, Face ID ve iOS bildirim düzeltmeleri korunur.
+- Gradle 8.14.3 / AGP 8.13.2 mesajları warning'dir; mevcut build'i durduran hata değildir.
+
+Version: 1.6.9
+Build: 97

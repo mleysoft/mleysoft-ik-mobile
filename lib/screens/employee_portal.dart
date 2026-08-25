@@ -177,7 +177,8 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
         ) ?? false;
         if (!continueWithLocation) throw Exception('Konum doğrulaması yapılmadan QR giriş/çıkış işlemi tamamlanamaz.');
         final pos = await NativeLocationService.currentPosition();
-        payload.addAll({'latitude': pos.latitude, 'longitude': pos.longitude, 'accuracy': pos.accuracy});
+        if (pos.isMocked) throw Exception('Sahte/test konum algılandı. QR işlemi gerçek cihaz konumu ile yapılmalıdır.');
+        payload.addAll({'latitude': pos.latitude, 'longitude': pos.longitude, 'accuracy': pos.accuracy, 'location_mocked': pos.isMocked});
       }
       final r = await widget.state.api.request(
         'employee/scan',

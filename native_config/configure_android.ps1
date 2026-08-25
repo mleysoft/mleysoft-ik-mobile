@@ -224,7 +224,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun returnLocation(result: MethodChannel.Result, location: Location) {
-        result.success(mapOf("latitude" to location.latitude, "longitude" to location.longitude, "accuracy" to location.accuracy.toDouble()))
+        result.success(mapOf("latitude" to location.latitude, "longitude" to location.longitude, "accuracy" to location.accuracy.toDouble(), "is_mocked" to (if (android.os.Build.VERSION.SDK_INT >= 31) location.isMock else location.isFromMockProvider)))
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

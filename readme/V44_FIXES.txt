@@ -1,0 +1,13 @@
+MleySoft IK Native V44
+
+Duzeltilen Android derleme sorunu:
+- AGP 9 / Flutter yeni Android template uyumsuzlugunda app/build.gradle.kts icindeki gecersiz kotlin { compilerOptions { ... } } blogu kaldirilir.
+- Uygulama modulundeki Kotlin Gradle Plugin bagimliligi kaldirilir.
+- MainActivity Kotlin yerine Java FlutterFragmentActivity olarak otomatik olusturulur.
+- android.newDsl=false ve android.builtInKotlin=false uyumluluk bayraklari gradle.properties'e otomatik yazilir.
+- Java 17 compileOptions zorlanir.
+- flutter_local_notifications icin core library desugaring etkinlestirilir.
+- desugar_jdk_libs:2.1.4 otomatik eklenir.
+- run_android_windows.bat her calistirmada ayarlari uygular, flutter clean + pub get yapar ve emulator-5554'e yukler.
+
+- fix_android_v44.bat mevcut Android klasorunu yeni uyumluluk ayarlariyla tek tikta duzeltir.

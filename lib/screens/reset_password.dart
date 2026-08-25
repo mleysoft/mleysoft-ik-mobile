@@ -10,7 +10,7 @@ class ResetPasswordScreen extends StatefulWidget{
 class _S extends State<ResetPasswordScreen>{
   final p1=TextEditingController(),p2=TextEditingController(); bool busy=false,hide=true;
   Future<void> save()async{
-    if(p1.text.length<6){snack(context,'Şifre en az 6 karakter olmalıdır.',error:true);return;}
+    if(p1.text.length<10 || !RegExp(r'[A-Za-z]').hasMatch(p1.text) || !RegExp(r'\d').hasMatch(p1.text)){snack(context,'Şifre en az 10 karakter olmalı ve harf ile rakam içermelidir.',error:true);return;}
     if(p1.text!=p2.text){snack(context,'Şifreler eşleşmiyor.',error:true);return;}
     setState(()=>busy=true);
     try{

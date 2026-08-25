@@ -132,7 +132,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
                 child: Text('${es.length} uygun personel', style: const TextStyle(fontSize: 11, color: MTheme.muted)),
               ),
               const SizedBox(height: 10),
-              TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Aylık Maaş *')),
+              TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Aylık Net Maaş (Kesintiler Dahil) *')),
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç'))),
@@ -416,7 +416,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
                         dataRowMaxHeight: 62,
                         columns: const [
                           DataColumn(label: Text('Personel')),
-                          DataColumn(label: Text('Aylık Maaş')),
+                          DataColumn(label: Text('Aylık Net Maaş')),
                           DataColumn(label: Text('Geldi')),
                           DataColumn(label: Text('Hafta Tatili')),
                           DataColumn(label: Text('Yıllık İzin')),
@@ -425,7 +425,7 @@ class _SalariesScreenState extends State<SalariesScreen> {
                           DataColumn(label: Text('Rapor')),
                           DataColumn(label: Text('Gelmedi')),
                           DataColumn(label: Text('Hesaplanan')),
-                          DataColumn(label: Text('Hakediş')),
+                          DataColumn(label: Text('Brüt Hakediş')),
                           DataColumn(label: Text('Avans')),
                           DataColumn(label: Text('Net')),
                         ],

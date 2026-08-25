@@ -1,0 +1,9 @@
+MleySoft İK V106 – Android/iOS Derleme Hatası Düzeltmesi
+
+- settings.dart içindeki 3 geçersiz Wrap(mainAxisSize: ...) kullanımı düzeltildi.
+- ListTile trailing aksiyonları Row(mainAxisSize: MainAxisSize.min, ...) olarak değiştirildi.
+- Android ve iOS'ta ortak Dart compile hatası giderildi.
+- Mobil sürüm 1.6.17+105 olarak artırıldı.
+- Release doğrulama betiğinin beklediği sürüm güncellendi.
+
+Not: flutter_local_notifications ile ilgili iOS deprecated/SPM mesajları uyarıdır; bu logdaki ARCHIVE FAILED sebebi değildir.

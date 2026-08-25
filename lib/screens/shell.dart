@@ -11,6 +11,7 @@ import 'leaves.dart';
 import 'reports.dart';
 import 'salaries.dart';
 import 'settings.dart';
+import 'hr_erp.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.state});
@@ -94,6 +95,7 @@ class _AppShellState extends State<AppShell> {
                       pageBuilder: (_, a, __) => FadeTransition(opacity: a, child: AccountScreen(state: widget.state)),
                     ));
                   }
+                  if (v == 'hr' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => HrErpScreen(state: widget.state)));
                   if (v == 'companies' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
                   if (v == 'logout') await logout();
                 },
@@ -104,6 +106,7 @@ class _AppShellState extends State<AppShell> {
                   ])),
                   const PopupMenuDivider(),
                   const PopupMenuItem(value: 'account', child: Text('Hesap ve Güvenlik')),
+                  const PopupMenuItem(value: 'hr', child: Text('İK ERP')),
                   if (widget.state.isSuper) const PopupMenuItem(value: 'companies', child: Text('Firma Yönetimi')),
                   const PopupMenuItem(value: 'logout', child: Text('Çıkış Yap')),
                 ],

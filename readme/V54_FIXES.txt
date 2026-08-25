@@ -1,0 +1,18 @@
+MleySoft IK Native V54
+
+V53 derleme hatasi:
+Kotlin plugin'in yeni surumu eski
+    kotlinOptions { jvmTarget = "17" }
+API'sini artik uyarı degil derleme hatasi olarak kabul ediyor.
+
+V54:
+- Eski kotlinOptions blogu tamamen kaldirildi.
+- org.jetbrains.kotlin.gradle.dsl.JvmTarget import edildi.
+- Yeni Kotlin compilerOptions DSL kullaniliyor:
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+- Gradle 8.14.3 + AGP 8.13.2 + API 36 korunuyor.
+- JDK secimi V53'teki guvenli mantikla devam ediyor.

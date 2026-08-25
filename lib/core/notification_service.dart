@@ -318,6 +318,11 @@ class NotificationService {
     return true;
   }
 
+  Future<void> showRemote(String title, String body, {String? payload}) async {
+    await initialize();
+    await plugin.show(DateTime.now().millisecondsSinceEpoch.remainder(2000000000), title, body, _details, payload: payload);
+  }
+
   Future<bool> showTest() async {
     await initialize();
     try {

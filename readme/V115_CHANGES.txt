@@ -1,0 +1,7 @@
+V115
+- QR native konum doğrulamasında ilk izin sonrası sonsuz bekleme giderildi; Android/iOS timeout eklendi.
+- Android personel duyurusu background polling kayıt yarış durumu giderildi.
+- Açık Avanslar filtre hizası düzeltildi.
+- Dönem Maaşları Filtrele butonu standart genişliğe getirildi.
+- Açık Avanslar ekranına Avans Geçmişi eklendi.
+- Mobil sürüm 1.6.26+114.

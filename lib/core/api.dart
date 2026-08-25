@@ -109,7 +109,7 @@ class ApiClient {
         }
       } catch (_) {
         throw ApiException(
-          'Sunucudan geçersiz yanıt alındı. HTTP ${response.statusCode}',
+          'Sunucuyla iletişim kurulurken bir sorun oluştu. Lütfen tekrar deneyin.',
           response.statusCode,
         );
       }
@@ -130,7 +130,7 @@ class ApiClient {
             ? (json['data']['route']?.toString() ?? '')
             : '';
         final error = ApiException(
-          debugRoute.isNotEmpty ? '$message ($debugRoute)' : message,
+          message,
           response.statusCode,
           code: json['code']?.toString(),
           paymentUrl: json['payment_url']?.toString(),

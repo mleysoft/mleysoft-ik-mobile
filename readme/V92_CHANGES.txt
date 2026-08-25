@@ -1,0 +1,14 @@
+MleySoft İK V92 – iOS App Store Privacy Fix
+
+- iOS Bundle ID her yeniden oluşturmada com.mleysoft.ik olarak zorlanır ve doğrulanır.
+- App Store Connect tarafından zorunlu istenen NSCameraUsageDescription eklendi/güncellendi.
+- App Store Connect tarafından zorunlu istenen NSPhotoLibraryUsageDescription eklendi.
+- Apple'ın uyarı verdiği NSLocationWhenInUseUsageDescription eklendi.
+- NSFaceIDUsageDescription korunuyor.
+- Uygulama görünen adı MleySoft İK olarak korunuyor.
+- App Store sürümü 1.6.8, yeni build numarası 91 olarak ayarlandı.
+- Codemagic/Flutter iOS platformu yeniden oluştursa bile configure_ios.py bu ayarları tekrar uygular.
+
+Bundle ID: com.mleysoft.ik
+Version: 1.6.8
+Build: 91

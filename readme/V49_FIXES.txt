@@ -1,0 +1,11 @@
+MleySoft IK Native V49
+
+V48 build hatasi Java 25.0.2'nin Gradle 8.11.1 ile uyumsuz olmasindan kaynaklaniyordu.
+
+V49:
+- Android Studio'nun bundled JBR/JDK klasorunu otomatik bulur.
+- JDK major surumunu kontrol eder (17-23 arasi).
+- JAVA_HOME ve PATH'i BAT icinde uyumlu JDK'ya ayarlar.
+- 'flutter config --jdk-dir=...' komutunu otomatik uygular.
+- Gradle 8.11.1 + AGP 8.10.1 + API 36 + JDK 17/21/23 uyumlu zinciri kullanir.
+- Java 25 artik Android build icin kullanilmaz.

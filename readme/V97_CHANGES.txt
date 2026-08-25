@@ -1,0 +1,11 @@
+MleySoft İK V97 – iOS Build Fix
+
+- Codemagic iOS build hatası giderildi.
+- local_auth 2.3.0 sürümünde bulunmayan LocalAuthException tipi kaldırıldı.
+- Biyometrik hatalar güvenli generic catch ile yakalanıyor.
+- Face ID / Touch ID destek kontrolleri aynen korunuyor.
+- V96'daki yeni ikon, MleySoft İK görünen adı, com.mleysoft.ik Bundle ID/package,
+  iOS test bildirimi ve Tanım Yönetimi tasarım düzenlemeleri korunuyor.
+
+Version: 1.6.9
+Build: 96

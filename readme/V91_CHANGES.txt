@@ -1,0 +1,14 @@
+MleySoft İK Mobile V91 - iOS / Codemagic / TestFlight
+
+- Sürüm: 1.6.9+91
+- iOS hazırlama akışı eklendi.
+- App Store Bundle ID: com.mleysoft.ik
+- Codemagic macOS üzerinde iOS Runner projesini otomatik üretir.
+- MleySoft İK uygulama adı iOS için ayarlanır.
+- Kamera ve Face ID kullanım açıklamaları eklenir.
+- Mevcut iOS uygulama ikonları ve splash varlıkları uygulanır.
+- API_BASE_URL varsayılanı https://mleysoft.com/system/ik/api/v1 olarak düzeltildi.
+- TestFlight için release IPA build betiği eklendi.
+- codemagic.yaml eklendi.
+
+NOT: Windows üzerinde gerçek Xcode proje dosyaları üretilemez. Codemagic macOS build sırasında Flutter'ın kurulu sürümü ile Runner projesi üretilir; bu, sürüm uyumsuzluğu riskini azaltır.

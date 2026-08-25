@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'api.dart';
 import 'biometric_service.dart';
 import 'device_identity.dart';
+import 'push_service.dart';
 import '../widgets/branded_loading.dart';
 
 class AppState extends ChangeNotifier {
@@ -25,8 +26,8 @@ class AppState extends ChangeNotifier {
   String? accessPaymentUrl;
   bool paymentRequired = false;
   Map<String,dynamic>? subscription;
-  static const int currentBuild = 119;
-  static const String currentVersion = '1.6.25';
+  static const int currentBuild = 136;
+  static const String currentVersion = '1.7.0';
   bool updateRequired = false;
   int minimumRequiredBuild = 0;
   String updateStoreUrl = '';
@@ -135,6 +136,7 @@ class AppState extends ChangeNotifier {
         employee = Map<String,dynamic>.from(r['employee']);
         company = Map<String,dynamic>.from(r['company']);
         user = null;
+        await PushService.instance.registerEmployee(api);
         return;
       }
       final r = await api.request('auth/me');
@@ -255,6 +257,7 @@ class AppState extends ChangeNotifier {
     user = null;
     locked = false;
     notifyListeners();
+    await PushService.instance.registerEmployee(api);
   }
 
   Future<void> resetPassword(String resetToken, String newPassword) async {

@@ -1,0 +1,8 @@
+MleySoft IK Native V42
+- login.dart derleme yapisi duzeltildi.
+- attendance.dart eksik puantaj bottom sheet yapisi duzeltildi.
+- reports.dart yeniden duzenlendi; yil alani yazilabilir sayi kutusu olarak korundu.
+- settings.dart hafta tatili dialog yapisi duzeltildi.
+- salaries.dart donem maasi detay bottom sheet yapisi duzeltildi.
+- check_android_windows.bat eklendi.
+- run_android_windows.bat emulator-5554 ve MleySoft API adresi icin kolaylastirildi.

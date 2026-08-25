@@ -1,0 +1,29 @@
+MleySoft İK V94 – iOS Branding Fix
+
+DÜZELTİLENLER
+- TestFlight/App Store'da görünen varsayılan Flutter ikonu kaldırıldı.
+- iOS AppIcon seti MleySoft özel ikonları ile yeniden uygulanır.
+- iPhone ana ekran uygulama adı zorunlu olarak: MleySoft İK
+- CFBundleDisplayName = MleySoft İK
+- CFBundleName = MleySoft İK
+- iOS Bundle ID = com.mleysoft.ik
+- Apple privacy açıklamaları korunur.
+- App Store Version = 1.6.8
+- Build = 93
+
+WINDOWS'TA UYGULAMA
+mobile_app klasöründe:
+    apply_ios_branding_windows.bat
+
+Bu işlem:
+1. ios/Runner.xcodeproj yoksa Flutter ile oluşturur.
+2. com.mleysoft.ik Bundle ID uygular.
+3. MleySoft İK adını uygular.
+4. MleySoft özel App Store/iPhone ikonlarını AppIcon.appiconset içine kopyalar.
+5. Ayarları doğrular.
+
+Sonra GitHub Desktop:
+Commit -> Push origin
+
+Codemagic:
+Yeni iOS build başlat.

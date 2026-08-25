@@ -106,6 +106,10 @@ if info_plist.exists():
         info = plistlib.load(f)
     info["CFBundleDisplayName"] = "MleySoft \u0130K"
     info["CFBundleName"] = "Runner"
+    modes = info.get("UIBackgroundModes", [])
+    for mode in ["fetch", "processing", "remote-notification"]:
+        if mode not in modes: modes.append(mode)
+    info["UIBackgroundModes"] = modes
     with info_plist.open("wb") as f:
         plistlib.dump(info, f, sort_keys=False)
 

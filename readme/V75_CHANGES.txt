@@ -1,0 +1,8 @@
+MleySoft İK Mobil V75
+- Admin firma seçim ekranı aramalı ve uzun listelere uygun hale getirildi.
+- Firma no + firma adı ile arama.
+- Tanımlar > Firma Tanımları eklendi.
+- Personel ekleme/düzenlemede Firma seçimi eklendi.
+- Personeller ekranında Firma filtresi ve firma bilgisi eklendi.
+- Puantaj ekranında Firma filtresi eklendi.
+- Tanımlar > Vardiyalar altında Aktif / Planlı Vardiya Kayıtları ve Geçici Vardiya Aktarımları ayrı listelenir.
