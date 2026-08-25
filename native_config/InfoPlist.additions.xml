@@ -1,10 +1,10 @@
-<!-- V92 additions to ios/Runner/Info.plist -->
+<!-- V147 additions to ios/Runner/Info.plist -->
 <key>NSFaceIDUsageDescription</key>
 <string>MleySoft İK hesabınıza güvenli ve hızlı giriş için Face ID kullanılabilir.</string>
 <key>NSCameraUsageDescription</key>
 <string>MleySoft İK, personel giriş ve çıkış işlemlerinde QR kodlarını okutmak ve kamera gerektiren işlemleri gerçekleştirmek için kamerayı kullanır.</string>
 <key>NSPhotoLibraryUsageDescription</key>
-<string>MleySoft İK, kullanıcı tarafından seçilen profil, belge veya görselleri uygulamaya eklemek için fotoğraf arşivine erişir.</string>
+<string>MleySoft İK, firma yöneticisinin İK ERP içindeki özlük kayıtlarına eklemek üzere yalnızca kendisinin seçtiği fotoğraf veya belge görsellerine erişir.</string>
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>MleySoft İK, personel giriş ve çıkışlarında QR kodunun tanımlı işyeri konumunda okutulduğunu doğrulamak için konumunuzu yalnızca uygulamayı kullanırken alır.</string>
 

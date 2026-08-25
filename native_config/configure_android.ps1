@@ -19,6 +19,14 @@ $settingsText = [regex]::Replace(
     'id\("com\.android\.application"\)\s+version\s+"[^"]+"',
     'id("com.android.application") version "8.13.2"'
 )
+# V148 Firebase: Google Services plugin is required to consume google-services.json.
+if ($settingsText -notmatch 'com\.google\.gms\.google-services') {
+    $settingsText = [regex]::Replace(
+        $settingsText,
+        '(id\("com\.android\.application"\)\s+version\s+"[^"]+"\s+apply false)',
+        '$1' + "`r`n    id(`"com.google.gms.google-services`") version `"4.5.0`" apply false"
+    )
+}
 Set-Content $settings $settingsText -Encoding UTF8
 
 $wrapperText = Get-Content $wrapper -Raw -Encoding UTF8
@@ -48,6 +56,7 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -421,3 +430,12 @@ if (Test-Path $manifest) {
 
 Write-Host 'V83 Android toolchain: AGP 8.13.2 + Gradle 8.14.3 + API 36.'
 Write-Host 'Kotlin JVM 17 compilerOptions aktif; MainActivity, tam alan adaptive MleySoft IK ikon + logosuz hizli sistem splash ve sifre reset deep-link ayarlari uygulandi.'
+
+# V148 Firebase native Android config.
+$firebaseSource = Join-Path $PSScriptRoot 'firebase/google-services.json'
+$firebaseDest = Join-Path $appRoot 'google-services.json'
+if (-not (Test-Path $firebaseSource)) { throw 'Firebase google-services.json bulunamadi.' }
+Copy-Item $firebaseSource $firebaseDest -Force
+$firebaseJson = Get-Content $firebaseDest -Raw -Encoding UTF8
+if ($firebaseJson -notmatch '"package_name"\s*:\s*"com\.mleysoft\.ik"') { throw 'Firebase Android package name com.mleysoft.ik degil.' }
+Write-Host 'V148 Firebase Android: google-services.json + Google Services 4.5.0 hazir.'

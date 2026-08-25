@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "971745236874",
+    "project_id": "mleysoft-tr",
+    "storage_bucket": "mleysoft-tr.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971745236874:android:9671d1f51e001b8be35a73",
+        "android_client_info": {
+          "package_name": "com.mleysoft.ik"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChNxqMDvar2NApHBmYqwDUJ4dk70Dh74E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,11 +1,14 @@
-<!-- V39 additions to android/app/src/main/AndroidManifest.xml -->
+<!-- V147 additions to android/app/src/main/AndroidManifest.xml -->
 <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 <!-- INTERNET is normally already present in a Flutter app -->
 <uses-permission android:name="android.permission.INTERNET" />
 
 <!-- In <application>: keep android:usesCleartextTraffic="false" in production. -->
+
+<!-- V147 İK ERP belge yükleme:
+     PDF/JPG/PNG seçimi Android Storage Access Framework / sistem dosya seçici ile yapılır.
+     READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, READ_EXTERNAL_STORAGE ve MANAGE_EXTERNAL_STORAGE eklenmemelidir. -->

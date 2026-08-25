@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/branded_loading.dart';
@@ -146,6 +148,24 @@ class ApiClient {
       }
 
       return json;
+    } on SocketException {
+      throw ApiException(
+        'Bağlantı sağlanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.',
+        0,
+        code: 'NETWORK_UNAVAILABLE',
+      );
+    } on TimeoutException {
+      throw ApiException(
+        'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.',
+        0,
+        code: 'NETWORK_TIMEOUT',
+      );
+    } on http.ClientException {
+      throw ApiException(
+        'Bağlantı sağlanamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.',
+        0,
+        code: 'NETWORK_CLIENT_ERROR',
+      );
     } finally {
       MleyLoadingController.instance.end();
     }

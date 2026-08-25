@@ -11,7 +11,10 @@ $m = Get-Content $manifest -Raw -Encoding UTF8
 
 $removePermissions = @(
     'android.permission.READ_MEDIA_IMAGES',
-    'android.permission.READ_MEDIA_VIDEO'
+    'android.permission.READ_MEDIA_VIDEO',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.MANAGE_EXTERNAL_STORAGE'
 )
 
 foreach ($permission in $removePermissions) {
@@ -25,4 +28,4 @@ foreach ($permission in $removePermissions) {
 
 Set-Content $manifest $m -Encoding UTF8
 
-Write-Host 'Google Play medya izinleri temizlendi: READ_MEDIA_IMAGES / READ_MEDIA_VIDEO kaldirildi.'
+Write-Host 'V147 Google Play dosya secimi: genis medya/depolama izinleri kaldirildi; sistem dosya secici kullaniliyor.'

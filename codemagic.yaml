@@ -19,6 +19,8 @@ workflows:
           python3 native_config/configure_ios.py
           test -f ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
+          test -f ios/Runner/GoogleService-Info.plist
+          grep -q "GoogleService-Info.plist in Resources" ios/Runner.xcodeproj/project.pbxproj
       - name: Get Flutter packages and verify native plugin registration
         script: |
           flutter pub get
@@ -45,6 +47,7 @@ workflows:
           rm -rf /tmp/mleysoft_ipa_verify && mkdir -p /tmp/mleysoft_ipa_verify
           unzip -q "$IPA_FILE" -d /tmp/mleysoft_ipa_verify
           FINAL_PLIST=$(find /tmp/mleysoft_ipa_verify/Payload -maxdepth 2 -name Info.plist | head -1)
+          test -f /tmp/mleysoft_ipa_verify/Payload/Runner.app/GoogleService-Info.plist
           test -n "$FINAL_PLIST"
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$FINAL_PLIST"
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" "$FINAL_PLIST" >/dev/null 2>&1
