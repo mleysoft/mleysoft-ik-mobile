@@ -24,11 +24,12 @@ final navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Uygulama arayüzü hiçbir native eklentinin başlatılmasını beklemez.
-  // Bazı gerçek Android cihazlarında WorkManager / bildirim servisi üreticiye
-  // özgü bir hata verirse uygulamanın açılışta kapanmasını engeller.
-  runApp(const MleyApp());
+  // FCM background handler uygulama ayağa kalkmadan kaydedilir.
+  // Firebase yapılandırmasında sorun olsa bile bootstrap kendi içinde hatayı yutar
+  // ve login ekranının açılmasını engellemez.
+  await PushService.instance.bootstrapForBackground();
 
+  runApp(const MleyApp());
   unawaited(_initializeNativeServices());
 }
 
