@@ -22,15 +22,25 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int index = 0;
-  late final pages = [
-    DashboardScreen(state: widget.state),
-    EmployeesScreen(state: widget.state),
-    AttendanceScreen(state: widget.state),
-    LeavesScreen(state: widget.state),
-    SalariesScreen(state: widget.state),
-    ReportsScreen(state: widget.state),
-    SettingsScreen(state: widget.state),
-  ];
+  late List<Widget> pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildPages();
+  }
+
+  void _rebuildPages() {
+    pages = [
+      DashboardScreen(state: widget.state),
+      EmployeesScreen(state: widget.state),
+      AttendanceScreen(state: widget.state),
+      LeavesScreen(state: widget.state),
+      SalariesScreen(state: widget.state),
+      ReportsScreen(state: widget.state),
+      SettingsScreen(state: widget.state),
+    ];
+  }
   final labels = ['Giriş', 'Personel', 'Puantaj', 'İzin', 'Maaş', 'Rapor', 'Tanımlar'];
   final icons = [
     Icons.dashboard_customize_outlined,
@@ -193,15 +203,22 @@ class _AppShellState extends State<AppShell> {
     if (selectedId == null || selectedId <= 0 || !mounted) return;
 
     try {
-      MleyLoadingController.instance.transition('Firma değiştiriliyor...');
-      await widget.state.selectCompany(selectedId);
+      // Firma seçme dialogu tamamen route ağacından çıktıktan sonra firma state'ini
+      // sessizce değiştiriyoruz. Mevcut shell üzerinde setState/rebuild yapılmıyor.
+      await Future<void>.delayed(const Duration(milliseconds: 80));
       if (!mounted) return;
 
-      // Yeni firma seçildiğinde mevcut sayfa state'lerinde eski firma verisi
-      // kalmasın. Shell'i temiz bir instance ile yenile.
+      await widget.state.selectCompanyInShell(selectedId);
+      if (!mounted) return;
+
+      // Eski shell'i ve içindeki tüm InheritedWidget/GlobalKey bağımlı sayfaları
+      // tek seferde kaldır. Yeni shell ancak eski route çıkarıldıktan sonra kurulur.
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => AppShell(state: widget.state),
+        PageRouteBuilder(
+          settings: RouteSettings(name: 'company-$selectedId'),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+          pageBuilder: (_, __, ___) => AppShell(state: widget.state),
         ),
       );
     } catch (e) {
@@ -288,16 +305,10 @@ class _AppShellState extends State<AppShell> {
           ],
         ),
         body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(position: Tween<Offset>(begin: const Offset(.025, 0), end: Offset.zero).animate(animation), child: child),
-            ),
-            child: KeyedSubtree(key: ValueKey(index), child: pages[index]),
-          ),
+          // V163: Firma değişiminde eski ve yeni sayfa ağacını aynı anda
+          // tutmuyoruz. Böylece GlobalKey'li form/scaffold yapıların iki kopyası
+          // aynı frame içinde oluşamaz.
+          child: pages[index],
         ),
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Color(0x160A1720), blurRadius: 20, offset: Offset(0, -5))]),

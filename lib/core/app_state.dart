@@ -366,6 +366,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> selectCompanyInShell(int id) async {
+    if (!isSuper || id <= 0) {
+      throw ApiException('Geçerli bir firma seçiniz.', 422);
+    }
+    final r = await api.request(
+      'auth/select-company',
+      method: 'POST',
+      data: {'company_id': id},
+    );
+    final selected = r['company'];
+    final activeId = int.tryParse('${r['active_company_id'] ?? 0}') ?? 0;
+    if (selected is! Map || activeId != id) {
+      throw ApiException('Firma oturumu doğrulanamadı.', 500);
+    }
+    company = Map<String, dynamic>.from(selected);
+    await api.storage.write(key: 'super_admin_company_id', value: '$id');
+    paymentRequired = false;
+    subscription = null;
+    locked = false;
+  }
+
   Future<void> clearCompany() async {
     if (isSuper && api.token != null) {
       try {
