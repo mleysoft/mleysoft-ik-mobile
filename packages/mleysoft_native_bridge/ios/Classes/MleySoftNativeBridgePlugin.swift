@@ -30,6 +30,16 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
       name: "com.mleysoft.ik/badge",
       binaryMessenger: messenger
     )
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      if settings.authorizationStatus == .authorized ||
+         settings.authorizationStatus == .provisional ||
+         settings.authorizationStatus == .ephemeral {
+        DispatchQueue.main.async {
+          UIApplication.shared.registerForRemoteNotifications()
+        }
+      }
+    }
+
     badgeChannel.setMethodCallHandler { call, result in
       if call.method == "setBadge",
          let args = call.arguments as? [String: Any],
@@ -175,6 +185,12 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
             result(granted)
           }
         }
+      }
+
+    case "registerForRemoteNotifications":
+      DispatchQueue.main.async {
+        UIApplication.shared.registerForRemoteNotifications()
+        result(true)
       }
 
     case "openNotificationSettings":

@@ -167,13 +167,40 @@ class AppState extends ChangeNotifier {
         await PushService.instance.registerEmployee(api);
         return;
       }
-      final r = await api.request('auth/me');
+      var r = await api.request('auth/me');
       user = Map<String, dynamic>.from(r['user']);
       employee = null;
-      final companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
-      company = companyId > 0 ? {'id': companyId, 'company_name': r['company_name']} : null;
+      var companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
+
+      // Super Admin tokenı firma bağından bağımsızdır. Uygulama yeniden
+      // oluşturulduğunda son seçilen firmayı güvenli şekilde geri yükle.
+      if (user?['role'] == 'super_admin' && companyId <= 0) {
+        try {
+          final stored = int.tryParse(
+                (await api.storage.read(key: 'super_admin_company_id')) ?? '',
+              ) ??
+              0;
+          if (stored > 0) {
+            final selected = await api.request(
+              'auth/select-company',
+              method: 'POST',
+              data: {'company_id': stored},
+            );
+            if (selected['company'] is Map) {
+              r = await api.request('auth/me');
+              companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
+            }
+          }
+        } catch (_) {}
+      }
+
+      company = companyId > 0
+          ? {'id': companyId, 'company_name': r['company_name']}
+          : null;
       paymentRequired = r['payment_required'] == true;
-      subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
+      subscription = r['subscription'] is Map
+          ? Map<String,dynamic>.from(r['subscription'])
+          : null;
     } catch (_) {
       if (api.token != null) await api.saveToken(null);
       user = null;
@@ -217,6 +244,12 @@ class AppState extends ChangeNotifier {
     employeeMode=false;employee=null;
     user = Map<String, dynamic>.from(r['user']);
     companies = (r['companies'] ?? []) as List;
+    if (user?['role'] == 'super_admin' && r['requires_company'] == true) {
+      company = null;
+      try {
+        await api.storage.delete(key: 'super_admin_company_id');
+      } catch (_) {}
+    }
     if (r['company'] != null) company = Map<String, dynamic>.from(r['company']);
     paymentRequired = r['payment_required'] == true;
     subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
@@ -269,6 +302,13 @@ class AppState extends ChangeNotifier {
 
 
 
+  Future<void> refreshEmployeePushRegistration() async {
+    if (!employeeMode || api.token == null || employee == null) return;
+    try {
+      await PushService.instance.registerEmployee(api);
+    } catch (_) {}
+  }
+
   Future<void> employeeLogin(String employeeCode) async {
     final device = await DeviceIdentity.collect();
     final r = await api.request('employee-auth/login', method: 'POST', data: {
@@ -305,12 +345,56 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectCompany(int id) async {
-    final r = await api.request('auth/select-company', method: 'POST', data: {'company_id': id});
-    company = Map<String, dynamic>.from(r['company']);
+    if (id <= 0) {
+      throw ApiException('Geçerli bir firma seçiniz.', 422);
+    }
+
+    final r = await api.request(
+      'auth/select-company',
+      method: 'POST',
+      data: {'company_id': id},
+    );
+
+    final selected = r['company'];
+    if (selected is! Map) {
+      throw ApiException('Firma seçimi tamamlanamadı.', 500);
+    }
+
+    company = Map<String, dynamic>.from(selected);
+    await api.storage.write(key: 'super_admin_company_id', value: '$id');
+
+    // Token üzerindeki aktif firma gerçekten değişmiş mi sunucudan tekrar doğrula.
+    final me = await api.request('auth/me');
+    final activeId = int.tryParse('${me['company_id'] ?? 0}') ?? 0;
+    if (activeId != id) {
+      company = null;
+      throw ApiException(
+        'Firma oturumu oluşturulamadı. Lütfen tekrar deneyin.',
+        409,
+      );
+    }
+
+    company = {
+      ...company!,
+      'id': activeId,
+      'company_name': me['company_name'] ?? company!['company_name'],
+    };
+    paymentRequired = me['payment_required'] == true;
+    subscription = me['subscription'] is Map
+        ? Map<String, dynamic>.from(me['subscription'])
+        : null;
     notifyListeners();
   }
 
   Future<void> clearCompany() async {
+    if (isSuper && api.token != null) {
+      try {
+        await api.request('auth/clear-company', method: 'POST');
+      } catch (_) {}
+      try {
+        await api.storage.delete(key: 'super_admin_company_id');
+      } catch (_) {}
+    }
     company = null;
     notifyListeners();
   }

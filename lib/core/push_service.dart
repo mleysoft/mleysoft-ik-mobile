@@ -5,11 +5,17 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api.dart';
 import 'device_identity.dart';
 import 'notification_service.dart';
+import 'native_notification_permission_service.dart';
+import '../firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> mleysoftFirebaseBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp();
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: MleyFirebaseOptions.currentPlatform,
+      );
+    }
   } catch (_) {}
 }
 
@@ -19,16 +25,31 @@ class PushService {
 
   bool _firebaseBootstrapped = false;
   bool _ready = false;
+  bool _listenersBound = false;
   StreamSubscription<String>? _tokenSubscription;
+  Timer? _retryTimer;
+
+  String? lastFcmToken;
+  String? lastApnsToken;
+  String? lastError;
 
   Future<void> bootstrapForBackground() async {
     if (_firebaseBootstrapped) return;
     try {
-      await Firebase.initializeApp();
-      FirebaseMessaging.onBackgroundMessage(mleysoftFirebaseBackgroundHandler);
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: MleyFirebaseOptions.currentPlatform,
+        );
+      }
+      FirebaseMessaging.onBackgroundMessage(
+        mleysoftFirebaseBackgroundHandler,
+      );
+      await FirebaseMessaging.instance.setAutoInitEnabled(true);
       _firebaseBootstrapped = true;
+      lastError = null;
     } catch (e) {
       _firebaseBootstrapped = false;
+      lastError = 'Firebase başlatılamadı: $e';
     }
   }
 
@@ -38,7 +59,7 @@ class PushService {
     if (!_firebaseBootstrapped) return;
 
     try {
-      await FirebaseMessaging.instance.requestPermission(
+      final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
@@ -46,77 +67,153 @@ class PushService {
       );
 
       if (Platform.isIOS) {
-        await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        // İzin daha önce verilmiş olsa bile her uygulama açılışında APNs'e
+        // yeniden register edilmesini garanti et. iOS yeniden kurulum/TestFlight
+        // geçişlerinde APNs tokenı ancak registerForRemoteNotifications sonrası gelir.
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          await NativeNotificationPermissionService.ensureRemoteRegistration();
+        }
+
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(
           alert: true,
           badge: true,
           sound: true,
         );
       }
 
-      FirebaseMessaging.onMessage.listen((m) {
-        final n = m.notification;
-        if (n != null) {
-          NotificationService.instance.showRemote(
-            n.title ?? 'MleySoft İK',
-            n.body ?? '',
-            payload: m.data['notification_id'] == null
-                ? null
-                : 'notice|${m.data['notification_id']}',
-          );
-        }
-      });
+      if (!_listenersBound) {
+        FirebaseMessaging.onMessage.listen((m) {
+          final n = m.notification;
+          if (n != null) {
+            NotificationService.instance.showRemote(
+              n.title ?? 'MleySoft İK',
+              n.body ?? '',
+              payload: m.data['notification_id'] == null
+                  ? null
+                  : 'notice|${m.data['notification_id']}',
+            );
+          }
+        });
+        _listenersBound = true;
+      }
 
       _ready = true;
-    } catch (_) {
+      lastError = null;
+    } catch (e) {
       _ready = false;
+      lastError = 'Bildirim servisi başlatılamadı: $e';
     }
   }
 
   Future<String?> _waitForApnsToken() async {
     if (!Platform.isIOS) return '';
-    for (var i = 0; i < 24; i++) {
+    await NativeNotificationPermissionService.ensureRemoteRegistration();
+
+    // APNs tokenının gerçek cihaz/TestFlight'ta birkaç saniye gecikmesine karşı
+    // 30 saniyeye kadar bekle.
+    for (var i = 0; i < 60; i++) {
       try {
         final token = await FirebaseMessaging.instance.getAPNSToken();
-        if (token != null && token.isNotEmpty) return token;
-      } catch (_) {}
+        if (token != null && token.isNotEmpty) {
+          lastApnsToken = token;
+          return token;
+        }
+      } catch (e) {
+        lastError = 'APNs token bekleniyor: $e';
+      }
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
+    lastApnsToken = null;
+    lastError = 'APNs cihaz tokenı alınamadı.';
     return null;
   }
 
-  Future<void> _registerToken(ApiClient api, String token, Map<String, dynamic> device) async {
+  Future<void> _registerToken(
+    ApiClient api,
+    String token,
+    Map<String, dynamic> device,
+  ) async {
     if (token.isEmpty || api.token == null) return;
     await api.request('employee/push-token', method: 'POST', data: {
       'fcm_token': token,
       'platform': Platform.isIOS ? 'ios' : 'android',
       'device_fingerprint': '${device['device_fingerprint'] ?? ''}',
+      'apns_token_present':
+          Platform.isIOS && (lastApnsToken?.isNotEmpty ?? false) ? 1 : 0,
     });
+    lastFcmToken = token;
+    lastError = null;
   }
 
-  Future<void> registerEmployee(ApiClient api) async {
+  Future<bool> registerEmployee(ApiClient api) async {
     if (!_ready) await initialize();
-    if (!_ready || api.token == null) return;
+    if (!_ready || api.token == null) return false;
 
     try {
       if (Platform.isIOS) {
         final apns = await _waitForApnsToken();
         if (apns == null || apns.isEmpty) {
-          // APNs kaydı henüz hazır değilse bir sonraki hydrate/login çağrısında tekrar denenir.
-          return;
+          _scheduleRetry(api);
+          return false;
         }
       }
 
       final token = await FirebaseMessaging.instance.getToken();
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        lastError = 'FCM cihaz tokenı alınamadı.';
+        _scheduleRetry(api);
+        return false;
+      }
+
       final device = await DeviceIdentity.collect();
       await _registerToken(api, token, device);
 
       await _tokenSubscription?.cancel();
-      _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      _tokenSubscription =
+          FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         try {
           await _registerToken(api, newToken, device);
-        } catch (_) {}
+        } catch (e) {
+          lastError = 'FCM token yenilenemedi: $e';
+        }
       });
+
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      return true;
+    } catch (e) {
+      lastError = 'Push cihaz kaydı tamamlanamadı: $e';
+      _scheduleRetry(api);
+      return false;
+    }
+  }
+
+  void _scheduleRetry(ApiClient api) {
+    if (_retryTimer?.isActive == true || api.token == null) return;
+    _retryTimer = Timer(const Duration(seconds: 15), () async {
+      _retryTimer = null;
+      await registerEmployee(api);
+    });
+  }
+
+  Future<Map<String, dynamic>> diagnostics() async {
+    String authorization = 'unknown';
+    try {
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
+      authorization = settings.authorizationStatus.name;
     } catch (_) {}
+
+    return {
+      'firebase_ready': _firebaseBootstrapped,
+      'push_ready': _ready,
+      'authorization': authorization,
+      'apns_token': lastApnsToken ?? '',
+      'fcm_token': lastFcmToken ?? '',
+      'last_error': lastError ?? '',
+      'platform': Platform.isIOS ? 'ios' : 'android',
+    };
   }
 }

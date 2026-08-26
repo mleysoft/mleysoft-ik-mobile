@@ -39,6 +39,18 @@ class NativeNotificationPermissionService {
     }
   }
 
+  static Future<bool> ensureRemoteRegistration() async {
+    if (!Platform.isIOS) return true;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'registerForRemoteNotifications',
+          ) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> openSettings() async {
     if (!Platform.isIOS) return false;
     try {

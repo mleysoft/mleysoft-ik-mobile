@@ -55,7 +55,7 @@ class MleyApp extends StatefulWidget {
   State<MleyApp> createState() => _MleyAppState();
 }
 
-class _MleyAppState extends State<MleyApp> {
+class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
   late final AppState state;
   final AppLinks links = AppLinks();
   StreamSubscription<Uri>? sub;
@@ -69,6 +69,7 @@ class _MleyAppState extends State<MleyApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     const apiBase = String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: 'https://mleysoft.com/system/ik',
@@ -111,6 +112,9 @@ class _MleyAppState extends State<MleyApp> {
           case NativeNotificationAuthorizationStatus.authorized:
           case NativeNotificationAuthorizationStatus.provisional:
           case NativeNotificationAuthorizationStatus.ephemeral:
+            // İzin daha önce verilmiş olabilir fakat yeni TestFlight kurulumu için
+            // APNs cihaz kaydı yeniden yapılmalıdır.
+            await NativeNotificationPermissionService.ensureRemoteRegistration();
             shown = true;
             break;
           case NativeNotificationAuthorizationStatus.unknown:
@@ -221,9 +225,24 @@ class _MleyAppState extends State<MleyApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     state.removeListener(_stateChanged);
     sub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed) {
+      if (Platform.isIOS) {
+        unawaited(
+          NativeNotificationPermissionService.ensureRemoteRegistration(),
+        );
+      }
+      if (state.employeeMode && state.loggedIn) {
+        unawaited(state.refreshEmployeePushRegistration());
+      }
+    }
   }
 
   @override

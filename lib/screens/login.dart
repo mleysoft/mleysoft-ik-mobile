@@ -6,6 +6,7 @@ import '../widgets/common.dart';
 import 'forgot_password.dart';
 import 'register_company.dart';
 import 'in_app_browser.dart';
+import 'shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.state});
@@ -120,7 +121,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
          e.code == 'PAYMENT_REQUIRED_MANAGER' ||
          e.code == 'PAYMENT_REQUIRED')) {
       final employeePayment = e.code == 'PAYMENT_REQUIRED_EMPLOYEE';
-      await showDialog<void>(
+      final selectedCompanyId = await showDialog<int>(
         context: context,
         barrierDismissible: false,
         builder: (c) => AlertDialog(
@@ -212,9 +213,10 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                                     title: Text('${x['company_name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)),
                                     subtitle: Text('Firma #$no${x['employee_count'] != null ? ' · ${x['employee_count']} personel' : ''}'),
                                     trailing: const Icon(Icons.chevron_right),
-                                    onTap: () async {
-                                      await widget.state.selectCompany(id);
-                                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                                    onTap: () {
+                                      if (id > 0) {
+                                        Navigator.pop(dialogContext, id);
+                                      }
                                     },
                                   ),
                                 );
@@ -227,6 +229,17 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
             ),
           ),
         );
+
+        if (selectedCompanyId != null && selectedCompanyId > 0) {
+          await widget.state.selectCompany(selectedCompanyId);
+          if (mounted && widget.state.company?['id'] != null) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AppShell(state: widget.state),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       await handleLoginError(e);
