@@ -31,14 +31,42 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _rebuildPages() {
+    final companyId =
+        int.tryParse('${widget.state.company?['id'] ?? 0}') ?? 0;
+
+    // V166: Her modül seçili firmaya özel key alır.
+    // Firma değiştiğinde Flutter eski StatefulWidget State'lerini yeniden
+    // kullanamaz; eski firmanın dashboard/personel/puantaj cache'i anında
+    // dispose edilir ve yeni ekranların initState/load() işlemleri sıfırdan başlar.
     pages = [
-      DashboardScreen(state: widget.state),
-      EmployeesScreen(state: widget.state),
-      AttendanceScreen(state: widget.state),
-      LeavesScreen(state: widget.state),
-      SalariesScreen(state: widget.state),
-      ReportsScreen(state: widget.state),
-      SettingsScreen(state: widget.state),
+      DashboardScreen(
+        key: ValueKey('dashboard-company-$companyId'),
+        state: widget.state,
+      ),
+      EmployeesScreen(
+        key: ValueKey('employees-company-$companyId'),
+        state: widget.state,
+      ),
+      AttendanceScreen(
+        key: ValueKey('attendance-company-$companyId'),
+        state: widget.state,
+      ),
+      LeavesScreen(
+        key: ValueKey('leaves-company-$companyId'),
+        state: widget.state,
+      ),
+      SalariesScreen(
+        key: ValueKey('salaries-company-$companyId'),
+        state: widget.state,
+      ),
+      ReportsScreen(
+        key: ValueKey('reports-company-$companyId'),
+        state: widget.state,
+      ),
+      SettingsScreen(
+        key: ValueKey('settings-company-$companyId'),
+        state: widget.state,
+      ),
     ];
   }
   final labels = ['Giriş', 'Personel', 'Puantaj', 'İzin', 'Maaş', 'Rapor', 'Tanımlar'];
@@ -78,151 +106,46 @@ class _AppShellState extends State<AppShell> {
     }
 
     if (!mounted) return;
-    final search = TextEditingController();
-    List<dynamic> visible = List<dynamic>.from(widget.state.companies);
 
-    final selectedId = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setModal) => AlertDialog(
-          titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-          contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-          title: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Firma Değiştir',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              SizedBox(height: 3),
-              Text(
-                'Yönetmek istediğiniz firmayı seçin.',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: 520,
-            height: MediaQuery.sizeOf(dialogContext).height * .62,
-            child: Column(
-              children: [
-                TextField(
-                  controller: search,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'Firma no veya firma adı ara',
-                  ),
-                  onChanged: (value) {
-                    final q = value.trim().toLowerCase();
-                    setModal(() {
-                      visible = q.isEmpty
-                          ? List<dynamic>.from(widget.state.companies)
-                          : widget.state.companies.where((x) {
-                              final id = int.tryParse('${x['id']}') ?? 0;
-                              final no = '#${id.toString().padLeft(4, '0')}';
-                              final text =
-                                  '$no ${x['id']} ${x['company_name'] ?? ''} ${x['short_name'] ?? ''}'
-                                      .toLowerCase();
-                              return text.contains(q);
-                            }).toList();
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: visible.isEmpty
-                      ? const Center(
-                          child: Text('Aramanıza uygun firma bulunamadı.'),
-                        )
-                      : ListView.separated(
-                          itemCount: visible.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 7),
-                          itemBuilder: (_, i) {
-                            final x = visible[i];
-                            final id = int.tryParse('${x['id']}') ?? 0;
-                            final currentId = int.tryParse(
-                                  '${widget.state.company?['id'] ?? 0}',
-                                ) ??
-                                0;
-                            final selected = id == currentId;
-                            final no = id.toString().padLeft(4, '0');
-                            return Material(
-                              color: selected
-                                  ? const Color(0xFFF2F9D8)
-                                  : const Color(0xFFF7F9FA),
-                              borderRadius: BorderRadius.circular(14),
-                              child: ListTile(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                leading: CircleAvatar(
-                                  backgroundColor: selected
-                                      ? MTheme.lime
-                                      : const Color(0xFF17212B),
-                                  foregroundColor: selected
-                                      ? MTheme.ink
-                                      : const Color(0xFFC9F400),
-                                  child: Text(
-                                    '${x['company_name'] ?? '?'}'.isEmpty
-                                        ? '?'
-                                        : '${x['company_name']}'[0],
-                                  ),
-                                ),
-                                title: Text(
-                                  '${x['company_name'] ?? ''}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Firma #$no'
-                                  '${x['employee_count'] != null ? ' · ${x['employee_count']} personel' : ''}'
-                                  '${selected ? ' · Aktif firma' : ''}',
-                                ),
-                                trailing: selected
-                                    ? const Icon(Icons.check_circle_rounded)
-                                    : const Icon(Icons.chevron_right),
-                                onTap: selected
-                                    ? null
-                                    : () => Navigator.pop(dialogContext, id),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
+    // PopupMenu route'u tamamen kapansın. Popup'ın onSelected callback'i içinde
+    // hemen yeni route açmak Flutter InheritedElement lifecycle'ı ile çakışabiliyor.
+    await Future<void>.delayed(const Duration(milliseconds: 220));
+    if (!mounted) return;
+
+    final selectedId = await Navigator.of(context).push<int>(
+      PageRouteBuilder<int>(
+        opaque: true,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, __, ___) => _CompanySwitchScreen(
+          state: widget.state,
         ),
       ),
     );
 
-    search.dispose();
     if (selectedId == null || selectedId <= 0 || !mounted) return;
 
     try {
-      // Firma seçme dialogu tamamen route ağacından çıktıktan sonra firma state'ini
-      // sessizce değiştiriyoruz. Mevcut shell üzerinde setState/rebuild yapılmıyor.
-      await Future<void>.delayed(const Duration(milliseconds: 80));
+      // Seçim route'u sıfır transition ile tamamen kalktıktan sonra API context'i değişir.
+      await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
 
       await widget.state.selectCompanyInShell(selectedId);
       if (!mounted) return;
 
-      // Eski shell'i ve içindeki tüm InheritedWidget/GlobalKey bağımlı sayfaları
-      // tek seferde kaldır. Yeni shell ancak eski route çıkarıldıktan sonra kurulur.
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          settings: RouteSettings(name: 'company-$selectedId'),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-          pageBuilder: (_, __, ___) => AppShell(state: widget.state),
-        ),
-      );
+      // MaterialApp/AppState notify YOK. Mevcut Shell yalnız kendi child sayfalarını
+      // yeni firma için yeniden üretir. Route, popup, dialog veya eski/new Shell overlap yok.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+
+      setState(() {
+        // Önce Dashboard'a dön, ardından company-id key'leriyle tüm modül
+        // widgetlarını yeniden oluştur. Dashboard'ın eski data State'i bu
+        // frame'de kaldırılır; kullanıcı eski firma verisini görmez.
+        index = 0;
+        _rebuildPages();
+      });
     } catch (e) {
-      MleyLoadingController.instance.reset();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$e')),
@@ -274,8 +197,17 @@ class _AppShellState extends State<AppShell> {
                     ));
                   }
                   if (v == 'hr' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => HrErpScreen(state: widget.state)));
-                  if (v == 'companies' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
-                  if (v == 'change_company' && mounted) await changeCompany();
+                  if (v == 'companies' && mounted) {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
+                  }
+                  if (v == 'change_company' && mounted) {
+                    // PopupMenu callback'i kendi route lifecycle'ını tamamlasın.
+                    // Firma seçici ayrı async task olarak açılır.
+                    Future<void>.delayed(
+                      Duration.zero,
+                      changeCompany,
+                    );
+                  }
                   if (v == 'logout') await logout();
                 },
                 itemBuilder: (_) => [
@@ -336,4 +268,146 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       );
+}
+
+
+class _CompanySwitchScreen extends StatefulWidget {
+  const _CompanySwitchScreen({required this.state});
+  final AppState state;
+
+  @override
+  State<_CompanySwitchScreen> createState() => _CompanySwitchScreenState();
+}
+
+class _CompanySwitchScreenState extends State<_CompanySwitchScreen> {
+  final TextEditingController search = TextEditingController();
+  late List<dynamic> visible;
+
+  @override
+  void initState() {
+    super.initState();
+    visible = List<dynamic>.from(widget.state.companies);
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  void filter(String value) {
+    final q = value.trim().toLowerCase();
+    setState(() {
+      visible = q.isEmpty
+          ? List<dynamic>.from(widget.state.companies)
+          : widget.state.companies.where((x) {
+              final id = int.tryParse('${x['id']}') ?? 0;
+              final no = '#${id.toString().padLeft(4, '0')}';
+              final text =
+                  '$no ${x['id']} ${x['company_name'] ?? ''} ${x['short_name'] ?? ''}'
+                      .toLowerCase();
+              return text.contains(q);
+            }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentId =
+        int.tryParse('${widget.state.company?['id'] ?? 0}') ?? 0;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Firma Değiştir',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              child: TextField(
+                controller: search,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Firma no veya firma adı ara',
+                ),
+                onChanged: filter,
+              ),
+            ),
+            Expanded(
+              child: visible.isEmpty
+                  ? const Center(
+                      child: Text('Aramanıza uygun firma bulunamadı.'),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: visible.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final x = visible[i];
+                        final id = int.tryParse('${x['id']}') ?? 0;
+                        final selected = id == currentId;
+                        final no = id.toString().padLeft(4, '0');
+                        final name = '${x['company_name'] ?? ''}';
+
+                        return Material(
+                          color: selected
+                              ? const Color(0xFFF2F9D8)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: selected
+                                    ? const Color(0xFFB7E000)
+                                    : const Color(0xFFE4E9EC),
+                              ),
+                            ),
+                            leading: CircleAvatar(
+                              backgroundColor: selected
+                                  ? MTheme.lime
+                                  : const Color(0xFF17212B),
+                              foregroundColor: selected
+                                  ? MTheme.ink
+                                  : const Color(0xFFC9F400),
+                              child: Text(
+                                name.isEmpty ? '?' : name[0],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Firma #$no'
+                              '${x['employee_count'] != null ? ' · ${x['employee_count']} personel' : ''}'
+                              '${selected ? ' · Aktif firma' : ''}',
+                            ),
+                            trailing: selected
+                                ? const Icon(Icons.check_circle_rounded)
+                                : const Icon(Icons.chevron_right_rounded),
+                            onTap: selected
+                                ? null
+                                : () => Navigator.of(context).pop(id),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

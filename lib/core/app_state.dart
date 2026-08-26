@@ -164,7 +164,10 @@ class AppState extends ChangeNotifier {
         employee = Map<String, dynamic>.from(r['employee']);
         company = Map<String, dynamic>.from(r['company']);
         user = null;
-        await PushService.instance.registerEmployee(api);
+        await PushService.instance.registerEmployee(
+          api,
+          employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+        );
         return;
       }
 
@@ -286,7 +289,10 @@ class AppState extends ChangeNotifier {
   Future<void> refreshEmployeePushRegistration() async {
     if (!employeeMode || api.token == null || employee == null) return;
     try {
-      await PushService.instance.registerEmployee(api);
+      await PushService.instance.registerEmployee(
+          api,
+          employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+        );
     } catch (_) {}
   }
 
@@ -306,7 +312,10 @@ class AppState extends ChangeNotifier {
     user = null;
     locked = false;
     notifyListeners();
-    await PushService.instance.registerEmployee(api);
+    await PushService.instance.registerEmployee(
+          api,
+          employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+        );
   }
 
   Future<void> resetPassword(String resetToken, String newPassword) async {
@@ -404,6 +413,8 @@ class AppState extends ChangeNotifier {
     if (api.token != null && !employeeMode) {
       try { await api.request('auth/logout', method: 'POST'); } catch (_) {}
     } else if (api.token != null && employeeMode) {
+      // Önce FCM cihazını bu personel oturumundan ayır.
+      await PushService.instance.unregisterEmployee(api);
       try { await api.request('employee-auth/logout', method: 'POST'); } catch (_) {}
     }
     await api.saveToken(null);

@@ -121,6 +121,23 @@ class NotificationService {
   Future<void> markPermissionIntroShown() async =>
       storage.write(key: 'notification_permission_intro', value: '1');
 
+  Future<bool> isPermissionGranted() async {
+    await initialize();
+    if (Platform.isIOS) {
+      final status = await NativeNotificationPermissionService.status();
+      return status == NativeNotificationAuthorizationStatus.authorized ||
+          status == NativeNotificationAuthorizationStatus.provisional ||
+          status == NativeNotificationAuthorizationStatus.ephemeral;
+    }
+    final android = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    try {
+      return await android?.areNotificationsEnabled() ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   Future<bool> requestPermission() async {
     await initialize();
     if (Platform.isIOS) {

@@ -33,15 +33,15 @@ class NotificationPermissionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Bildirimleri Açın',
+                'Bildirimleri Açık Tutun',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Text(
                 permissionDenied
-                    ? 'Bildirim izni daha önce kapatılmış. Personel duyurularını ve uygulama uyarılarını alabilmek için iPhone Ayarları’ndan MleySoft İK bildirimlerini açın.'
-                    : 'Puantaj hatırlatmaları, vardiya uyarıları ve size özel bildirimleri zamanında alabilmek için MleySoft İK bildirimlerine izin verin.',
+                    ? 'Bildirim izni verilmedi. MleySoft İK bildirimleri yalnızca oturum açtığınız hesaba ait önemli İK bilgilerini zamanında ulaştırmak için kullanılır. Firma duyuruları, vardiya ve puantaj bildirimleri, izin/rapor bilgilendirmeleri ve size özel uyarıları uygulamayı açmadan görebilmeniz için bildirimleri açmanızı öneririz.'
+                    : 'Firma duyuruları, vardiya ve puantaj bildirimleri, izin/rapor bilgilendirmeleri ve size özel önemli İK uyarılarını zamanında alabilmek için bildirimlere izin verin.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: MTheme.muted, height: 1.45),
               ),
@@ -52,14 +52,14 @@ class NotificationPermissionScreen extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onAllow,
                   icon: const Icon(Icons.notifications_outlined),
-                  label: Text(permissionDenied ? 'iPhone Ayarlarını Aç' : 'Bildirimlere İzin Ver'),
+                  label: Text(permissionDenied ? 'Bildirimleri Aç' : 'Bildirimlere İzin Ver'),
                 ),
               ),
               const SizedBox(height: 8),
-              TextButton(onPressed: onLater, child: const Text('Şimdilik Değil')),
+              TextButton(onPressed: onLater, child: const Text('Daha Sonra')),
               const Spacer(),
               const Text(
-                'Bu seçim daha sonra telefonunuzun uygulama ayarlarından değiştirilebilir.',
+                'Daha sonra uygulama ayarlarından bildirim iznini yeniden açabilirsiniz.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 10, color: MTheme.muted),
               ),

@@ -83,54 +83,70 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
 
 
   Future<void> _loadNotificationIntro() async {
-    bool shown = false;
+    bool done = false;
     bool denied = false;
+
     try {
-      if (Platform.isIOS) {
-        // V118: iOS'ta secure storage/keychain reinstall sonrası kalabildiği için
-        // yalnız yerel 'intro gösterildi' anahtarına güvenmiyoruz. Gerçek sistem
-        // bildirim yetkisi her açılışta UNUserNotificationCenter'dan okunur.
+      // V167: İlk kurulumda izin akışının tek sahibi burasıdır.
+      // 1) Sistem izni zaten açıksa MleySoft açıklama ekranı gösterilmez.
+      // 2) Sistem henüz sormadıysa doğrudan native izin penceresi açılır.
+      // 3) Kullanıcı reddederse ancak o zaman açıklamalı "Bildirimleri Açın"
+      //    ekranı gösterilir ve kullanıcı "Daha Sonra" diyebilir.
+      final alreadyGranted =
+          await NotificationService.instance.isPermissionGranted();
+
+      if (alreadyGranted) {
+        await NotificationService.instance.markPermissionIntroShown();
+        done = true;
+      } else if (Platform.isIOS) {
         final status = await NativeNotificationPermissionService.status();
-        switch (status) {
-          case NativeNotificationAuthorizationStatus.notDetermined:
-            // V119: iOS ilk kurulumda sistem bildirim iznini doğrudan iste.
-            // Keychain/secure-storage geçmişine bağlı kalma; gerçek iOS durumu esas alınır.
-            final granted = await NativeNotificationPermissionService.request();
-            if (granted) {
-              await NotificationService.instance.markPermissionIntroShown();
-              shown = true;
-            } else {
-              final refreshed = await NativeNotificationPermissionService.status();
-              denied = refreshed == NativeNotificationAuthorizationStatus.denied;
-              shown = false;
-            }
-            break;
-          case NativeNotificationAuthorizationStatus.denied:
-            shown = false;
+        if (status == NativeNotificationAuthorizationStatus.notDetermined) {
+          final granted =
+              await NotificationService.instance.requestPermission();
+          if (granted) {
+            await NotificationService.instance.markPermissionIntroShown();
+            await NativeNotificationPermissionService
+                .ensureRemoteRegistration();
+            done = true;
+          } else {
             denied = true;
-            break;
-          case NativeNotificationAuthorizationStatus.authorized:
-          case NativeNotificationAuthorizationStatus.provisional:
-          case NativeNotificationAuthorizationStatus.ephemeral:
-            // İzin daha önce verilmiş olabilir fakat yeni TestFlight kurulumu için
-            // APNs cihaz kaydı yeniden yapılmalıdır.
-            await NativeNotificationPermissionService.ensureRemoteRegistration();
-            shown = true;
-            break;
-          case NativeNotificationAuthorizationStatus.unknown:
-            shown = await NotificationService.instance.hasShownPermissionIntro();
-            break;
+            done = false;
+          }
+        } else {
+          denied =
+              status == NativeNotificationAuthorizationStatus.denied;
+          done = false;
         }
       } else {
-        shown = await NotificationService.instance.hasShownPermissionIntro();
+        // Android 13+ ilk açılış native POST_NOTIFICATIONS izni.
+        // Kabul edilirse ikinci uygulama ekranı kesinlikle gösterilmez.
+        final introWasHandled =
+            await NotificationService.instance.hasShownPermissionIntro();
+        if (!introWasHandled) {
+          final granted =
+              await NotificationService.instance.requestPermission();
+          if (granted) {
+            await NotificationService.instance.markPermissionIntroShown();
+            done = true;
+          } else {
+            denied = true;
+            done = false;
+          }
+        } else {
+          // Kullanıcı daha önce "Daha Sonra" dedi; uygulamayı engelleme.
+          done = true;
+          denied = true;
+        }
       }
     } catch (_) {
-      shown = false;
+      // İzin altyapısındaki bir hata login ekranını engellemez.
+      done = true;
     }
+
     if (!mounted) return;
     setState(() {
       notificationPermissionDenied = denied;
-      notificationIntroDone = shown;
+      notificationIntroDone = done;
       notificationIntroLoaded = true;
     });
   }
@@ -140,16 +156,28 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
       await NativeNotificationPermissionService.openSettings();
       return;
     }
+
     final granted = await NotificationService.instance.requestPermission();
-    if (Platform.isIOS && !granted) {
-      final status = await NativeNotificationPermissionService.status();
+    if (!granted) {
       if (mounted) {
-        setState(() => notificationPermissionDenied = status == NativeNotificationAuthorizationStatus.denied);
+        setState(() => notificationPermissionDenied = true);
       }
       return;
     }
+
     await NotificationService.instance.markPermissionIntroShown();
-    if (mounted) setState(() => notificationIntroDone = true);
+    if (Platform.isIOS) {
+      await NativeNotificationPermissionService.ensureRemoteRegistration();
+    }
+    if (state.employeeMode && state.loggedIn) {
+      unawaited(state.refreshEmployeePushRegistration());
+    }
+    if (mounted) {
+      setState(() {
+        notificationPermissionDenied = false;
+        notificationIntroDone = true;
+      });
+    }
   }
 
   Future<void> _skipNotifications() async {
@@ -223,6 +251,27 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _refreshNotificationPermissionAfterResume() async {
+    try {
+      final granted =
+          await NotificationService.instance.isPermissionGranted();
+      if (!granted || !mounted) return;
+      await NotificationService.instance.markPermissionIntroShown();
+      if (Platform.isIOS) {
+        await NativeNotificationPermissionService.ensureRemoteRegistration();
+      }
+      if (state.employeeMode && state.loggedIn) {
+        await state.refreshEmployeePushRegistration();
+      }
+      if (mounted) {
+        setState(() {
+          notificationPermissionDenied = false;
+          notificationIntroDone = true;
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -234,6 +283,7 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
+      unawaited(_refreshNotificationPermissionAfterResume());
       if (Platform.isIOS) {
         unawaited(
           NativeNotificationPermissionService.ensureRemoteRegistration(),

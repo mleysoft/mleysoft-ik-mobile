@@ -32,6 +32,7 @@ class PushService {
   String? lastFcmToken;
   String? lastApnsToken;
   String? lastError;
+  int? _activeEmployeeId;
 
   Future<void> bootstrapForBackground() async {
     if (_firebaseBootstrapped) return;
@@ -59,22 +60,15 @@ class PushService {
     if (!_firebaseBootstrapped) return;
 
     try {
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-
+      // V167: Uygulama servis başlangıcında sistem bildirim iznini burada
+      // İSTEMEZ. İlk izin penceresini yalnız main.dart yönetir. Böylece native
+      // izin onaylandıktan sonra ikinci MleySoft izin ekranının görünmesi engellenir.
       if (Platform.isIOS) {
-        // İzin daha önce verilmiş olsa bile her uygulama açılışında APNs'e
-        // yeniden register edilmesini garanti et. iOS yeniden kurulum/TestFlight
-        // geçişlerinde APNs tokenı ancak registerForRemoteNotifications sonrası gelir.
+        final settings = await FirebaseMessaging.instance.getNotificationSettings();
         if (settings.authorizationStatus == AuthorizationStatus.authorized ||
             settings.authorizationStatus == AuthorizationStatus.provisional) {
           await NativeNotificationPermissionService.ensureRemoteRegistration();
         }
-
         await FirebaseMessaging.instance
             .setForegroundNotificationPresentationOptions(
           alert: true,
@@ -85,6 +79,14 @@ class PushService {
 
       if (!_listenersBound) {
         FirebaseMessaging.onMessage.listen((m) {
+          // Push bildirimi cihazın değil, oturum açmış personelin bildirimidir.
+          final targetEmployee =
+              int.tryParse('${m.data['employee_id'] ?? 0}') ?? 0;
+          if (_activeEmployeeId == null ||
+              targetEmployee <= 0 ||
+              targetEmployee != _activeEmployeeId) {
+            return;
+          }
           final n = m.notification;
           if (n != null) {
             NotificationService.instance.showRemote(
@@ -147,9 +149,12 @@ class PushService {
     lastError = null;
   }
 
-  Future<bool> registerEmployee(ApiClient api) async {
+  Future<bool> registerEmployee(ApiClient api, {int? employeeId}) async {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
+    if (employeeId != null && employeeId > 0) {
+      _activeEmployeeId = employeeId;
+    }
 
     try {
       if (Platform.isIOS) {
@@ -194,8 +199,32 @@ class PushService {
     if (_retryTimer?.isActive == true || api.token == null) return;
     _retryTimer = Timer(const Duration(seconds: 15), () async {
       _retryTimer = null;
-      await registerEmployee(api);
+      await registerEmployee(api, employeeId: _activeEmployeeId);
     });
+  }
+
+  Future<void> unregisterEmployee(ApiClient api) async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    await _tokenSubscription?.cancel();
+    _tokenSubscription = null;
+
+    // Sunucudaki personel-cihaz eşleşmesini oturum kapanmadan pasifleştir.
+    if (api.token != null) {
+      try {
+        await api.request('employee/push-token/revoke', method: 'POST');
+      } catch (_) {}
+    }
+
+    _activeEmployeeId = null;
+    lastFcmToken = null;
+    lastApnsToken = null;
+
+    // FCM token cihazda kalırsa sunucu tarafında bir ağ hatası yaşanan logout'ta
+    // eski kullanıcı bildirim almaya devam edebilir. Tokenı cihazda da sil.
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>> diagnostics() async {
