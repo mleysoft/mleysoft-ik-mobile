@@ -187,6 +187,10 @@ class AppState extends ChangeNotifier {
               data: {'company_id': stored},
             );
             if (selected['company'] is Map) {
+              final replacementToken = '${selected['token'] ?? ''}'.trim();
+              if (replacementToken.isNotEmpty) {
+                await api.saveToken(replacementToken);
+              }
               r = await api.request('auth/me');
               companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
             }
@@ -360,10 +364,18 @@ class AppState extends ChangeNotifier {
       throw ApiException('Firma seçimi tamamlanamadı.', 500);
     }
 
+    // V153 API firma seçerken yeni scoped token üretir. auth/me çağrısından
+    // ÖNCE yeni tokenı kaydetmek zorunludur; aksi halde eski token artık revoked
+    // olduğu için "Oturum süreniz doldu" hatası oluşur.
+    final scopedToken = '${r['token'] ?? ''}'.trim();
+    if (scopedToken.isEmpty) {
+      throw ApiException('Firma oturumu oluşturulamadı.', 500);
+    }
+    await api.saveToken(scopedToken);
+
     company = Map<String, dynamic>.from(selected);
     await api.storage.write(key: 'super_admin_company_id', value: '$id');
 
-    // Token üzerindeki aktif firma gerçekten değişmiş mi sunucudan tekrar doğrula.
     final me = await api.request('auth/me');
     final activeId = int.tryParse('${me['company_id'] ?? 0}') ?? 0;
     if (activeId != id) {
@@ -389,7 +401,9 @@ class AppState extends ChangeNotifier {
   Future<void> clearCompany() async {
     if (isSuper && api.token != null) {
       try {
-        await api.request('auth/clear-company', method: 'POST');
+        final r = await api.request('auth/clear-company', method: 'POST');
+        final freshToken = '${r['token'] ?? ''}'.trim();
+        if (freshToken.isNotEmpty) await api.saveToken(freshToken);
       } catch (_) {}
       try {
         await api.storage.delete(key: 'super_admin_company_id');
