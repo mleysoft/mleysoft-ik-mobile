@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'api.dart';
 import 'biometric_service.dart';
 import 'device_identity.dart';
@@ -26,36 +27,62 @@ class AppState extends ChangeNotifier {
   String? accessPaymentUrl;
   bool paymentRequired = false;
   Map<String,dynamic>? subscription;
-  static const int currentBuild = 136;
-  static const String currentVersion = '1.7.0';
+  int currentBuild = 0;
+  String currentVersion = '';
   bool updateRequired = false;
+  bool forceUpdateEnabled = false;
   int minimumRequiredBuild = 0;
   String updateStoreUrl = '';
   String updateMessage = 'MleySoft İK uygulamasının yeni bir sürümü yayınlandı. Devam etmek için uygulamayı güncellemeniz gerekiyor.';
 
+  Future<void> _loadInstalledVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      currentVersion = info.version.trim();
+      currentBuild = int.tryParse(info.buildNumber.trim()) ?? 0;
+    } catch (_) {
+      // Paket bilgisi okunamazsa zorunlu güncelleme asla uygulanmaz.
+      currentVersion = '';
+      currentBuild = 0;
+    }
+  }
+
   Future<void> _checkRequiredUpdate() async {
     final platform = Platform.isIOS ? 'ios' : 'android';
-    final minKey = 'minimum_build_$platform';
-    final urlKey = 'store_url_$platform';
+
+    // Eski sürümlerde secure storage'a minimum build yazılıyordu.
+    // iOS Keychain uygulama silinse bile kalabildiği için bu eski değerlerin
+    // App Review cihazında yanlış zorunlu güncelleme üretmesine izin vermiyoruz.
     try {
-      final cached = int.tryParse(await api.storage.read(key: minKey) ?? '') ?? 0;
-      final cachedUrl = await api.storage.read(key: urlKey) ?? '';
-      minimumRequiredBuild = cached;
-      updateStoreUrl = cachedUrl;
-      updateRequired = currentBuild < cached;
+      await api.storage.delete(key: 'minimum_build_$platform');
+      await api.storage.delete(key: 'store_url_$platform');
     } catch (_) {}
+
+    // Ağ/API ulaşılamazsa kullanıcı kilitlenmez. Zorunlu güncelleme yalnızca
+    // sunucudan o anda alınmış, açıkça etkin bir kural ile uygulanır.
+    updateRequired = false;
+    forceUpdateEnabled = false;
+    minimumRequiredBuild = 0;
+
+    if (currentBuild <= 0) return;
+
     try {
-      final r = await api.request('app/version', query: {'platform': platform, 'build': currentBuild});
-      minimumRequiredBuild = int.tryParse('${r['minimum_build'] ?? 0}') ?? 0;
+      final r = await api.request('app/version', query: {
+        'platform': platform,
+        'build': currentBuild,
+      });
+      minimumRequiredBuild =
+          int.tryParse('${r['minimum_build'] ?? 0}') ?? 0;
       updateStoreUrl = '${r['store_url'] ?? ''}';
       updateMessage = '${r['message'] ?? updateMessage}';
-      updateRequired = currentBuild < minimumRequiredBuild;
-      try {
-        await api.storage.write(key: minKey, value: '$minimumRequiredBuild');
-        await api.storage.write(key: urlKey, value: updateStoreUrl);
-      } catch (_) {}
+      forceUpdateEnabled = r['force_enabled'] == true ||
+          '${r['force_enabled'] ?? '0'}' == '1';
+      updateRequired = forceUpdateEnabled &&
+          minimumRequiredBuild > 0 &&
+          currentBuild < minimumRequiredBuild;
     } catch (_) {
-      // Çevrimdışıyken daha önce alınmış minimum sürüm kuralı korunur.
+      updateRequired = false;
+      forceUpdateEnabled = false;
     }
   }
 
@@ -100,6 +127,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> bootstrap() async {
     try {
+      await _loadInstalledVersion();
       await _checkRequiredUpdate();
       if (updateRequired) return;
       await api.loadToken();

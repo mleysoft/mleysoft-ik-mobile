@@ -45,7 +45,7 @@ class _ForcedUpdateScreenState extends State<ForcedUpdateScreen> {
                     const SizedBox(height: 10),
                     Text(widget.state.updateMessage, style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF52606D)), textAlign: TextAlign.center),
                     const SizedBox(height: 8),
-                    Text('Yüklü sürüm: ${AppState.currentVersion} (${AppState.currentBuild})', style: const TextStyle(fontSize: 11, color: Color(0xFF7A8793))),
+                    Text('Yüklü sürüm: ${widget.state.currentVersion} (${widget.state.currentBuild})', style: const TextStyle(fontSize: 11, color: Color(0xFF7A8793))),
                     const SizedBox(height: 26),
                     SizedBox(width: double.infinity, height: 50, child: FilledButton.icon(onPressed: widget.state.updateStoreUrl.trim().isEmpty ? null : _openStore, icon: const Icon(Icons.storefront_outlined), label: const Text('Uygulamayı Güncelle'))),
                     const SizedBox(height: 10),
