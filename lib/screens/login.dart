@@ -121,7 +121,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
          e.code == 'PAYMENT_REQUIRED_MANAGER' ||
          e.code == 'PAYMENT_REQUIRED')) {
       final employeePayment = e.code == 'PAYMENT_REQUIRED_EMPLOYEE';
-      final selectedCompanyId = await showDialog<int>(
+      await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (c) => AlertDialog(
@@ -149,7 +149,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
       if (choose && mounted) {
         final companySearch = TextEditingController();
         List<dynamic> visible = List<dynamic>.from(widget.state.companies);
-        await showDialog<void>(
+        final selectedCompanyId = await showDialog<int>(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => StatefulBuilder(
