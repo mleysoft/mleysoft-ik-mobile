@@ -159,57 +159,34 @@ class AppState extends ChangeNotifier {
   Future<void> _hydrate() async {
     if (api.token == null) return;
     try {
-      if(employeeMode){
+      if (employeeMode) {
         final r = await api.request('employee-auth/me');
-        employee = Map<String,dynamic>.from(r['employee']);
-        company = Map<String,dynamic>.from(r['company']);
+        employee = Map<String, dynamic>.from(r['employee']);
+        company = Map<String, dynamic>.from(r['company']);
         user = null;
         await PushService.instance.registerEmployee(api);
         return;
       }
-      var r = await api.request('auth/me');
+
+      // V158: Normal yönetici ve seçilmiş Super Admin aynı auth/me/token yolunu kullanır.
+      final r = await api.request('auth/me');
       user = Map<String, dynamic>.from(r['user']);
       employee = null;
-      var companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
-
-      // Super Admin tokenı firma bağından bağımsızdır. Uygulama yeniden
-      // oluşturulduğunda son seçilen firmayı güvenli şekilde geri yükle.
-      if (user?['role'] == 'super_admin' && companyId <= 0) {
-        try {
-          final stored = int.tryParse(
-                (await api.storage.read(key: 'super_admin_company_id')) ?? '',
-              ) ??
-              0;
-          if (stored > 0) {
-            final selected = await api.request(
-              'auth/select-company',
-              method: 'POST',
-              data: {'company_id': stored},
-            );
-            if (selected['company'] is Map) {
-              final replacementToken = '${selected['token'] ?? ''}'.trim();
-              if (replacementToken.isNotEmpty) {
-                await api.saveToken(replacementToken);
-              }
-              r = await api.request('auth/me');
-              companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
-            }
-          }
-        } catch (_) {}
-      }
-
+      final companyId = int.tryParse('${r['company_id'] ?? 0}') ?? 0;
       company = companyId > 0
           ? {'id': companyId, 'company_name': r['company_name']}
           : null;
       paymentRequired = r['payment_required'] == true;
       subscription = r['subscription'] is Map
-          ? Map<String,dynamic>.from(r['subscription'])
+          ? Map<String, dynamic>.from(r['subscription'])
           : null;
-    } catch (_) {
-      if (api.token != null) await api.saveToken(null);
-      user = null;
-      employee = null;
-      company = null;
+    } catch (e) {
+      if (e is ApiException && e.status == 401) {
+        if (api.token != null) await api.saveToken(null);
+        user = null;
+        employee = null;
+        company = null;
+      }
     }
   }
 
@@ -348,9 +325,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshCompanies() async {
+    if (!isSuper || api.token == null) return;
+    final r = await api.request('companies');
+    companies = (r['companies'] ?? []) as List;
+    notifyListeners();
+  }
+
   Future<void> selectCompany(int id) async {
-    if (id <= 0) {
+    if (!isSuper || id <= 0) {
       throw ApiException('Geçerli bir firma seçiniz.', 422);
+    }
+
+    final beforeToken = api.token;
+    if (beforeToken == null || beforeToken.isEmpty) {
+      throw ApiException('Yönetici oturumu bulunamadı.', 401);
     }
 
     final r = await api.request(
@@ -360,50 +349,27 @@ class AppState extends ChangeNotifier {
     );
 
     final selected = r['company'];
-    if (selected is! Map) {
-      throw ApiException('Firma seçimi tamamlanamadı.', 500);
+    final activeId = int.tryParse('${r['active_company_id'] ?? 0}') ?? 0;
+    if (selected is! Map || activeId != id) {
+      throw ApiException('Firma oturumu doğrulanamadı.', 500);
     }
 
-    // V153 API firma seçerken yeni scoped token üretir. auth/me çağrısından
-    // ÖNCE yeni tokenı kaydetmek zorunludur; aksi halde eski token artık revoked
-    // olduğu için "Oturum süreniz doldu" hatası oluşur.
-    final scopedToken = '${r['token'] ?? ''}'.trim();
-    if (scopedToken.isEmpty) {
-      throw ApiException('Firma oturumu oluşturulamadı.', 500);
+    if (api.token != beforeToken) {
+      await api.saveToken(beforeToken);
     }
-    await api.saveToken(scopedToken);
 
     company = Map<String, dynamic>.from(selected);
     await api.storage.write(key: 'super_admin_company_id', value: '$id');
-
-    final me = await api.request('auth/me');
-    final activeId = int.tryParse('${me['company_id'] ?? 0}') ?? 0;
-    if (activeId != id) {
-      company = null;
-      throw ApiException(
-        'Firma oturumu oluşturulamadı. Lütfen tekrar deneyin.',
-        409,
-      );
-    }
-
-    company = {
-      ...company!,
-      'id': activeId,
-      'company_name': me['company_name'] ?? company!['company_name'],
-    };
-    paymentRequired = me['payment_required'] == true;
-    subscription = me['subscription'] is Map
-        ? Map<String, dynamic>.from(me['subscription'])
-        : null;
+    paymentRequired = false;
+    subscription = null;
+    locked = false;
     notifyListeners();
   }
 
   Future<void> clearCompany() async {
     if (isSuper && api.token != null) {
       try {
-        final r = await api.request('auth/clear-company', method: 'POST');
-        final freshToken = '${r['token'] ?? ''}'.trim();
-        if (freshToken.isNotEmpty) await api.saveToken(freshToken);
+        await api.request('auth/clear-company', method: 'POST');
       } catch (_) {}
       try {
         await api.storage.delete(key: 'super_admin_company_id');

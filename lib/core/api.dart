@@ -77,11 +77,12 @@ class ApiClient {
     );
 
     try {
+      final requestToken = token;
       final headers = <String, String>{
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       };
-      if (token != null) headers['Authorization'] = 'Bearer $token';
+      if (requestToken != null) headers['Authorization'] = 'Bearer $requestToken';
 
       final uri = _uri(route, query);
       final body = data == null ? null : jsonEncode(data);
@@ -117,10 +118,13 @@ class ApiClient {
       }
 
       if (response.statusCode == 401) {
-        await saveToken(null);
+        // V155: Tek bir API isteğinin 401 cevabı global oturumu burada silmez.
+        // Oturum temizleme kararı AppState tarafından kontrollü verilir.
         throw ApiException(
-          json['message']?.toString() ?? 'Oturum süresi doldu.',
+          json['message']?.toString() ?? 'Oturum doğrulanamadı.',
           401,
+          code: json['code']?.toString(),
+          details: json,
         );
       }
 

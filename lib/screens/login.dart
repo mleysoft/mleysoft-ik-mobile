@@ -6,7 +6,6 @@ import '../widgets/common.dart';
 import 'forgot_password.dart';
 import 'register_company.dart';
 import 'in_app_browser.dart';
-import 'shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.state});
@@ -232,13 +231,6 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
 
         if (selectedCompanyId != null && selectedCompanyId > 0) {
           await widget.state.selectCompany(selectedCompanyId);
-          if (mounted && widget.state.company?['id'] != null) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => AppShell(state: widget.state),
-              ),
-            );
-          }
         }
       }
     } catch (e) {

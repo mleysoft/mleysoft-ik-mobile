@@ -52,6 +52,167 @@ class _AppShellState extends State<AppShell> {
     Icons.tune_rounded,
   ];
 
+  Future<void> changeCompany() async {
+    if (!widget.state.isSuper || !mounted) return;
+
+    try {
+      if (widget.state.companies.isEmpty) {
+        await widget.state.refreshCompanies();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final search = TextEditingController();
+    List<dynamic> visible = List<dynamic>.from(widget.state.companies);
+
+    final selectedId = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setModal) => AlertDialog(
+          titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+          contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Firma Değiştir',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Yönetmek istediğiniz firmayı seçin.',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 520,
+            height: MediaQuery.sizeOf(dialogContext).height * .62,
+            child: Column(
+              children: [
+                TextField(
+                  controller: search,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Firma no veya firma adı ara',
+                  ),
+                  onChanged: (value) {
+                    final q = value.trim().toLowerCase();
+                    setModal(() {
+                      visible = q.isEmpty
+                          ? List<dynamic>.from(widget.state.companies)
+                          : widget.state.companies.where((x) {
+                              final id = int.tryParse('${x['id']}') ?? 0;
+                              final no = '#${id.toString().padLeft(4, '0')}';
+                              final text =
+                                  '$no ${x['id']} ${x['company_name'] ?? ''} ${x['short_name'] ?? ''}'
+                                      .toLowerCase();
+                              return text.contains(q);
+                            }).toList();
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: visible.isEmpty
+                      ? const Center(
+                          child: Text('Aramanıza uygun firma bulunamadı.'),
+                        )
+                      : ListView.separated(
+                          itemCount: visible.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 7),
+                          itemBuilder: (_, i) {
+                            final x = visible[i];
+                            final id = int.tryParse('${x['id']}') ?? 0;
+                            final currentId = int.tryParse(
+                                  '${widget.state.company?['id'] ?? 0}',
+                                ) ??
+                                0;
+                            final selected = id == currentId;
+                            final no = id.toString().padLeft(4, '0');
+                            return Material(
+                              color: selected
+                                  ? const Color(0xFFF2F9D8)
+                                  : const Color(0xFFF7F9FA),
+                              borderRadius: BorderRadius.circular(14),
+                              child: ListTile(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                leading: CircleAvatar(
+                                  backgroundColor: selected
+                                      ? MTheme.lime
+                                      : const Color(0xFF17212B),
+                                  foregroundColor: selected
+                                      ? MTheme.ink
+                                      : const Color(0xFFC9F400),
+                                  child: Text(
+                                    '${x['company_name'] ?? '?'}'.isEmpty
+                                        ? '?'
+                                        : '${x['company_name']}'[0],
+                                  ),
+                                ),
+                                title: Text(
+                                  '${x['company_name'] ?? ''}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Firma #$no'
+                                  '${x['employee_count'] != null ? ' · ${x['employee_count']} personel' : ''}'
+                                  '${selected ? ' · Aktif firma' : ''}',
+                                ),
+                                trailing: selected
+                                    ? const Icon(Icons.check_circle_rounded)
+                                    : const Icon(Icons.chevron_right),
+                                onTap: selected
+                                    ? null
+                                    : () => Navigator.pop(dialogContext, id),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    search.dispose();
+    if (selectedId == null || selectedId <= 0 || !mounted) return;
+
+    try {
+      MleyLoadingController.instance.transition('Firma değiştiriliyor...');
+      await widget.state.selectCompany(selectedId);
+      if (!mounted) return;
+
+      // Yeni firma seçildiğinde mevcut sayfa state'lerinde eski firma verisi
+      // kalmasın. Shell'i temiz bir instance ile yenile.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AppShell(state: widget.state),
+        ),
+      );
+    } catch (e) {
+      MleyLoadingController.instance.reset();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
+
   Future<void> logout() async {
     MleyLoadingController.instance.reset();
     await widget.state.logout();
@@ -97,6 +258,7 @@ class _AppShellState extends State<AppShell> {
                   }
                   if (v == 'hr' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => HrErpScreen(state: widget.state)));
                   if (v == 'companies' && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyAdminScreen(state: widget.state)));
+                  if (v == 'change_company' && mounted) await changeCompany();
                   if (v == 'logout') await logout();
                 },
                 itemBuilder: (_) => [
@@ -107,7 +269,18 @@ class _AppShellState extends State<AppShell> {
                   const PopupMenuDivider(),
                   const PopupMenuItem(value: 'account', child: Text('Hesap ve Güvenlik')),
                   const PopupMenuItem(value: 'hr', child: Text('İK ERP')),
-                  if (widget.state.isSuper) const PopupMenuItem(value: 'companies', child: Text('Firma Yönetimi')),
+                  if (widget.state.isSuper)
+                    const PopupMenuItem(
+                      value: 'change_company',
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.swap_horiz_rounded),
+                        title: Text('Firma Değiştir'),
+                      ),
+                    ),
+                  if (widget.state.isSuper)
+                    const PopupMenuItem(value: 'companies', child: Text('Firma Yönetimi')),
                   const PopupMenuItem(value: 'logout', child: Text('Çıkış Yap')),
                 ],
               ),
