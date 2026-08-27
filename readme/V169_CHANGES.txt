@@ -1,0 +1,9 @@
+MleySoft İK V169 / build 1.7.0+162
+
+Apple App Store Guideline 3.1.1 adjustment:
+- iOS/iPadOS no longer exposes the business/company registration entry point.
+- The company registration form and package/payment registration flow remain available on Android.
+- Existing manager/employee login flows are unchanged.
+- iOS cannot navigate to RegisterCompanyScreen from LoginScreen.
+
+The iOS restriction is runtime platform-specific so the Android SaaS registration workflow is preserved.

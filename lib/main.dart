@@ -283,15 +283,9 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
+      // Tek bir resume zinciri izin/APNs/push durumunu arka planda kontrol eder.
+      // Önceki sürümde aynı anda iki registerEmployee çağrısı başlayabiliyordu.
       unawaited(_refreshNotificationPermissionAfterResume());
-      if (Platform.isIOS) {
-        unawaited(
-          NativeNotificationPermissionService.ensureRemoteRegistration(),
-        );
-      }
-      if (state.employeeMode && state.loggedIn) {
-        unawaited(state.refreshEmployeePushRegistration());
-      }
     }
   }
 

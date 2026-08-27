@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/api.dart';
@@ -303,11 +304,13 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                       ],
                     ),
                   ),
-                  const Row(children:[Expanded(child:Divider()),Padding(padding:EdgeInsets.symmetric(horizontal:10),child:Text('Henüz hesabınız yok mu?',style:TextStyle(fontSize:11,color:MTheme.muted))),Expanded(child:Divider())]),
-                  const SizedBox(height:12),
-                  SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RegisterCompanyScreen(state:widget.state))),icon:const Icon(Icons.business_outlined,size:18),label:const Text('Yeni Firma Kaydı'))),
-                  const SizedBox(height:10),
-                  const Text('Firma kaydınızı ve ödeme işlemlerinizi uygulamadan çıkmadan tamamlayabilirsiniz.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
+                  if (!Platform.isIOS) ...[
+                    const Row(children:[Expanded(child:Divider()),Padding(padding:EdgeInsets.symmetric(horizontal:10),child:Text('Henüz hesabınız yok mu?',style:TextStyle(fontSize:11,color:MTheme.muted))),Expanded(child:Divider())]),
+                    const SizedBox(height:12),
+                    SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RegisterCompanyScreen(state:widget.state))),icon:const Icon(Icons.business_outlined,size:18),label:const Text('Yeni Firma Kaydı'))),
+                    const SizedBox(height:10),
+                    const Text('Firma kaydınızı ve ödeme işlemlerinizi Android uygulamasından veya web sitemizden tamamlayabilirsiniz.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
+                  ],
                   const SizedBox(height: 14),
                   Wrap(
                     alignment: WrapAlignment.center,

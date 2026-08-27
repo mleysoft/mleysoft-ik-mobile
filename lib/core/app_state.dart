@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -164,9 +165,15 @@ class AppState extends ChangeNotifier {
         employee = Map<String, dynamic>.from(r['employee']);
         company = Map<String, dynamic>.from(r['company']);
         user = null;
-        await PushService.instance.registerEmployee(
-          api,
-          employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+
+        // V168: Personel oturumu açılır açılmaz arayüz hazır hale gelir.
+        // APNs/FCM kaydı arka planda yapılır; iOS APNs tokenının gecikmesi
+        // splash/başlangıç ekranını artık bloke etmez.
+        unawaited(
+          PushService.instance.registerEmployee(
+            api,
+            employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+          ),
         );
         return;
       }
@@ -312,10 +319,14 @@ class AppState extends ChangeNotifier {
     user = null;
     locked = false;
     notifyListeners();
-    await PushService.instance.registerEmployee(
-          api,
-          employeeId: int.tryParse('${employee?['id'] ?? 0}'),
-        );
+
+    // Giriş tamamlandıktan sonra push kaydı arka planda devam eder.
+    unawaited(
+      PushService.instance.registerEmployee(
+        api,
+        employeeId: int.tryParse('${employee?['id'] ?? 0}'),
+      ),
+    );
   }
 
   Future<void> resetPassword(String resetToken, String newPassword) async {

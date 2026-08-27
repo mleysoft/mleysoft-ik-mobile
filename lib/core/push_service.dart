@@ -113,9 +113,10 @@ class PushService {
     if (!Platform.isIOS) return '';
     await NativeNotificationPermissionService.ensureRemoteRegistration();
 
-    // APNs tokenının gerçek cihaz/TestFlight'ta birkaç saniye gecikmesine karşı
-    // 30 saniyeye kadar bekle.
-    for (var i = 0; i < 60; i++) {
+    // V168: Tek bir push kayıt denemesi uygulamayı uzun süre tutmaz.
+    // APNs henüz hazır değilse en fazla yaklaşık 3 saniye beklenir ve işlem
+    // arka plandaki retry mekanizmasına bırakılır.
+    for (var i = 0; i < 6; i++) {
       try {
         final token = await FirebaseMessaging.instance.getAPNSToken();
         if (token != null && token.isNotEmpty) {
@@ -197,7 +198,7 @@ class PushService {
 
   void _scheduleRetry(ApiClient api) {
     if (_retryTimer?.isActive == true || api.token == null) return;
-    _retryTimer = Timer(const Duration(seconds: 15), () async {
+    _retryTimer = Timer(const Duration(seconds: 8), () async {
       _retryTimer = null;
       await registerEmployee(api, employeeId: _activeEmployeeId);
     });
