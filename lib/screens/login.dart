@@ -304,7 +304,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                       ],
                     ),
                   ),
-                  if (!Platform.isIOS) ...[
+                  if (false) ...[
                     const Row(children:[Expanded(child:Divider()),Padding(padding:EdgeInsets.symmetric(horizontal:10),child:Text('Henüz hesabınız yok mu?',style:TextStyle(fontSize:11,color:MTheme.muted))),Expanded(child:Divider())]),
                     const SizedBox(height:12),
                     SizedBox(width:double.infinity,child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>RegisterCompanyScreen(state:widget.state))),icon:const Icon(Icons.business_outlined,size:18),label:const Text('Yeni Firma Kaydı'))),
