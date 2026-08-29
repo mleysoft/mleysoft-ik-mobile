@@ -198,11 +198,30 @@ class PushService {
     lastError = null;
   }
 
+  Future<void> _reportManagerPushDiagnostic(ApiClient api, String stage, {String? error, String? apns, String? fcm}) async {
+    if (api.token == null) return;
+    try {
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final device = await DeviceIdentity.collect();
+      await api.request('manager/push-diagnostic', method: 'POST', data: {
+        'stage': stage,
+        'authorization': settings.authorizationStatus.name,
+        'apns_present': (apns ?? lastApnsToken ?? '').isNotEmpty ? 1 : 0,
+        'fcm_present': (fcm ?? lastFcmToken ?? '').isNotEmpty ? 1 : 0,
+        'apns_preview': (apns ?? lastApnsToken ?? '').isEmpty ? '' : '${(apns ?? lastApnsToken!).substring(0, 8)}...',
+        'fcm_preview': (fcm ?? lastFcmToken ?? '').isEmpty ? '' : '${(fcm ?? lastFcmToken!).substring(0, 12)}...',
+        'device_fingerprint': '${device['device_fingerprint'] ?? ''}',
+        'error': error ?? lastError ?? '',
+      });
+    } catch (_) {}
+  }
+
   Future<bool> registerManager(ApiClient api) async {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
 
     try {
+      await _reportManagerPushDiagnostic(api, 'register_started');
       // V193: iOS firma hesabı için izin/APNs/FCM zincirini doğrudan
       // firebase_messaging üzerinden de tetikle. Native izin kanalı tek başına
       // çalışsa bile Firebase SDK'nın APNs registration state'i hazır olmayabiliyordu.
@@ -218,6 +237,7 @@ class PushService {
         }
         if (settings.authorizationStatus == AuthorizationStatus.denied) {
           lastError = 'iOS bildirim izni kapalı.';
+          await _reportManagerPushDiagnostic(api, 'permission_denied', error: lastError);
           return false;
         }
         await NativeNotificationPermissionService.ensureRemoteRegistration();
@@ -232,7 +252,7 @@ class PushService {
           } catch (_) {}
           await Future<void>.delayed(const Duration(milliseconds: 500));
         }
-        if (apns != null && apns.isNotEmpty) lastApnsToken = apns;
+        if (apns != null && apns.isNotEmpty) { lastApnsToken = apns; await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns); } else { await _reportManagerPushDiagnostic(api, 'apns_missing', error: 'APNs token 15 saniye içinde alınamadı.'); }
       }
 
       String? token;
@@ -247,12 +267,25 @@ class PushService {
         }
         await Future<void>.delayed(const Duration(seconds: 2));
       }
+      // V197: iOS'ta FlutterFire token yolu boş kalırsa Firebase Messaging
+      // native SDK'sından aynı tokenı doğrudan al. Bu iki yol aynı Firebase
+      // installation'ını kullanır; amaç platform-channel zamanlama sorununu
+      // sunucu kaydından tamamen ayırmaktır.
+      if ((token == null || token.isEmpty) && Platform.isIOS) {
+        final nativeTokens = await NativeNotificationPermissionService.getNativePushTokens();
+        final nativeApns = nativeTokens['apns_token'] ?? '';
+        final nativeFcm = nativeTokens['fcm_token'] ?? '';
+        if (nativeApns.isNotEmpty) lastApnsToken = nativeApns;
+        if (nativeFcm.isNotEmpty) token = nativeFcm;
+      }
       if (token == null || token.isEmpty) {
         lastError = 'Firma FCM tokenı alınamadı${tokenError == null ? '' : ': $tokenError'}';
+        await _reportManagerPushDiagnostic(api, 'fcm_missing', error: lastError);
         _scheduleManagerRetry(api);
         return false;
       }
 
+      await _reportManagerPushDiagnostic(api, 'fcm_ready', fcm: token);
       final device = await DeviceIdentity.collect();
       await api.request('manager/push-token', method: 'POST', data: {
         'fcm_token': token,
@@ -262,6 +295,7 @@ class PushService {
       });
       lastFcmToken = token;
       lastError = null;
+      await _reportManagerPushDiagnostic(api, 'server_registered', fcm: token);
 
       await _tokenSubscription?.cancel();
       _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
@@ -286,6 +320,7 @@ class PushService {
       return true;
     } catch (e) {
       lastError = 'Firma yetkilisi push kaydı tamamlanamadı: $e';
+      await _reportManagerPushDiagnostic(api, 'exception', error: lastError);
       _scheduleManagerRetry(api);
       return false;
     }

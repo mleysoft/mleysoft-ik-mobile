@@ -328,44 +328,18 @@ if pbx.exists():
 print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resources.")
 
 
-# V196: deterministic APNs -> FCM bridge for iOS.
+# V197: Firebase Messaging AppDelegate proxy MUST stay enabled (default).
+# Do not replace Flutter-generated AppDelegate. Firebase swizzling receives the
+# APNs device-token callback and associates it with the FCM installation.
 if info_plist.exists():
     with info_plist.open("rb") as f:
-        v196_info = plistlib.load(f)
-    v196_info["FirebaseAppDelegateProxyEnabled"] = False
+        v197_info = plistlib.load(f)
+    v197_info.pop("FirebaseAppDelegateProxyEnabled", None)
     with info_plist.open("wb") as f:
-        plistlib.dump(v196_info, f, sort_keys=False)
+        plistlib.dump(v197_info, f, sort_keys=False)
 
-v196_app_delegate = """import Flutter
-import UIKit
-import FirebaseMessaging
-
-@main
-@objc class AppDelegate: FlutterAppDelegate {
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  override func application(
-    _ application: UIApplication,
-    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-  ) {
-    Messaging.messaging().apnsToken = deviceToken
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
-  }
-
-  override func application(
-    _ application: UIApplication,
-    didFailToRegisterForRemoteNotificationsWithError error: Error
-  ) {
-    NSLog(\"MleySoft APNs registration failed: \\(error.localizedDescription)\")
-    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
-  }
-}
-"""
-app_delegate.write_text(v196_app_delegate, encoding="utf-8")
-print("V196 VERIFY OK: Firebase proxy disabled; APNs token explicitly forwarded to Firebase Messaging.")
+app_delegate = runner / "AppDelegate.swift"
+app_delegate_text = app_delegate.read_text(encoding="utf-8")
+if "Messaging.messaging().apnsToken" in app_delegate_text or "FirebaseAppDelegateProxyEnabled" in app_delegate_text:
+    raise SystemExit("V197 ERROR: legacy manual Firebase AppDelegate override remains.")
+print("V197 VERIFY OK: Firebase AppDelegate proxy default enabled; generated AppDelegate untouched.")

@@ -1,0 +1,8 @@
+V197 iOS push rebuild
+- Restored Firebase Messaging AppDelegate proxy/swizzling (default supported FlutterFire path).
+- Removed V196 manual AppDelegate APNs bridge.
+- Added FirebaseMessaging dependency to native bridge.
+- Added native getNativePushTokens fallback using Messaging.messaging().token.
+- Manager registration now uses FlutterFire token first and native Firebase SDK fallback second.
+- Existing server manager/push-token persists the resulting iOS token.
+Version 1.7.6+179.

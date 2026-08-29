@@ -51,6 +51,19 @@ class NativeNotificationPermissionService {
     }
   }
 
+  static Future<Map<String, String>> getNativePushTokens() async {
+    if (!Platform.isIOS) return const {'fcm_token': '', 'apns_token': ''};
+    try {
+      final value = await _channel.invokeMapMethod<String, dynamic>('getNativePushTokens');
+      return {
+        'fcm_token': '${value?['fcm_token'] ?? ''}',
+        'apns_token': '${value?['apns_token'] ?? ''}',
+      };
+    } catch (_) {
+      return const {'fcm_token': '', 'apns_token': ''};
+    }
+  }
+
   static Future<bool> openSettings() async {
     if (!Platform.isIOS) return false;
     try {

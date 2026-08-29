@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import CoreLocation
 import UserNotifications
+import FirebaseMessaging
 
 public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
   private let locationManager = CLLocationManager()
@@ -191,6 +192,22 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
       DispatchQueue.main.async {
         UIApplication.shared.registerForRemoteNotifications()
         result(true)
+      }
+
+    case "getNativePushTokens":
+      // V197: Firebase iOS SDK'dan tokeni doğrudan native katmanda da al.
+      // FlutterFire getToken gecikirse/boş dönerse aynı Firebase Messaging
+      // instance'ının gerçek registration tokenı yedek yol olarak kullanılır.
+      DispatchQueue.main.async {
+        UIApplication.shared.registerForRemoteNotifications()
+        Messaging.messaging().token { fcmToken, error in
+          if let error {
+            result(FlutterError(code: "FCM_TOKEN_ERROR", message: error.localizedDescription, details: nil))
+            return
+          }
+          let apns = Messaging.messaging().apnsToken?.map { String(format: "%02x", $0) }.joined() ?? ""
+          result(["fcm_token": fcmToken ?? "", "apns_token": apns])
+        }
       }
 
     case "openNotificationSettings":
