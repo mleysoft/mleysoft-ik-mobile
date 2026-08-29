@@ -31,6 +31,7 @@ class NotificationService {
   final FlutterSecureStorage storage = const FlutterSecureStorage();
   final ValueNotifier<String?> birthdayTapMessage = ValueNotifier<String?>(null);
   final ValueNotifier<int?> announcementTapId = ValueNotifier<int?>(null);
+  final ValueNotifier<int?> managerNotificationTapId = ValueNotifier<int?>(null);
   final ValueNotifier<int> unreadAnnouncementCount = ValueNotifier<int>(0);
   bool initialized = false;
   bool workmanagerInitialized = false;
@@ -91,12 +92,32 @@ class NotificationService {
       birthdayTapMessage.value = message;
       return;
     }
+    if (payload.startsWith('manager_notice|')) {
+      final id = int.tryParse(payload.substring('manager_notice|'.length));
+      if (id == null || id <= 0) return;
+      await storage.write(key: 'pending_manager_notification_id', value: '$id');
+      managerNotificationTapId.value = id;
+      return;
+    }
     if (payload.startsWith('notice|')) {
       final id = int.tryParse(payload.substring('notice|'.length));
       if (id == null || id <= 0) return;
       await storage.write(key: 'pending_announcement_id', value: '$id');
       announcementTapId.value = id;
     }
+  }
+
+  Future<void> handleRemoteManagerNotificationTap(int id) async {
+    if (id <= 0) return;
+    await storage.write(key: 'pending_manager_notification_id', value: '$id');
+    managerNotificationTapId.value = id;
+  }
+
+  Future<int?> consumeManagerNotificationTapId() async {
+    final direct=managerNotificationTapId.value; managerNotificationTapId.value=null;
+    final stored=int.tryParse(await storage.read(key:'pending_manager_notification_id')??'');
+    await storage.delete(key:'pending_manager_notification_id');
+    return direct??stored;
   }
 
   Future<void> handleRemoteNotificationTap(int id) async {

@@ -100,6 +100,8 @@ class AppState extends ChangeNotifier {
     await api.storage.delete(key: 'session_mode');
     await api.storage.delete(key: 'employee_notice_last_notified_id');
     await api.storage.delete(key: 'employee_id');
+    await api.storage.delete(key: 'manager_user_id');
+    await api.storage.delete(key: 'pending_manager_notification_id');
     await api.storage.delete(key: 'pending_announcement_id');
     paymentRequired = false; subscription = null;
     employeeMode = false;
@@ -192,6 +194,10 @@ class AppState extends ChangeNotifier {
       subscription = r['subscription'] is Map
           ? Map<String, dynamic>.from(r['subscription'])
           : null;
+      if (user?['role'] != 'super_admin' && companyId > 0) {
+        await api.storage.write(key: 'manager_user_id', value: '${user?['id'] ?? ''}');
+        unawaited(PushService.instance.registerManager(api, userId: int.tryParse('${user?['id'] ?? 0}')));
+      }
     } catch (e) {
       if (e is ApiException && e.status == 401) {
         if (api.token != null) await api.saveToken(null);
@@ -247,6 +253,10 @@ class AppState extends ChangeNotifier {
     paymentRequired = r['payment_required'] == true;
     subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
     locked = false;
+    if (user?['role'] != 'super_admin' && company != null) {
+      await api.storage.write(key: 'manager_user_id', value: '${user?['id'] ?? ''}');
+      unawaited(PushService.instance.registerManager(api, userId: int.tryParse('${user?['id'] ?? 0}')));
+    }
     notifyListeners();
     return r['requires_company'] == true;
   }
@@ -424,7 +434,10 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    if (api.token != null && !employeeMode) {
+    if (api.token != null && !employeeMode && !isSuper) {
+      await PushService.instance.unregisterManager(api);
+      try { await api.request('auth/logout', method: 'POST'); } catch (_) {}
+    } else if (api.token != null && !employeeMode) {
       try { await api.request('auth/logout', method: 'POST'); } catch (_) {}
     } else if (api.token != null && employeeMode) {
       // Önce FCM cihazını bu personel oturumundan ayır.
@@ -435,6 +448,8 @@ class AppState extends ChangeNotifier {
     await api.storage.delete(key: 'session_mode');
     await api.storage.delete(key: 'employee_notice_last_notified_id');
     await api.storage.delete(key: 'employee_id');
+    await api.storage.delete(key: 'manager_user_id');
+    await api.storage.delete(key: 'pending_manager_notification_id');
     await api.storage.delete(key: 'pending_announcement_id');
     paymentRequired = false;
     subscription = null;

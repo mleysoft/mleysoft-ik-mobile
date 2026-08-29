@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/theme.dart';
 import '../widgets/branded_loading.dart';
+import '../core/notification_service.dart';
+import 'manager_notifications.dart';
 import 'account.dart';
 import 'attendance.dart';
 import 'company_admin.dart';
@@ -23,11 +26,38 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int index = 0;
   late List<Widget> pages;
+  int managerUnread = 0;
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     _rebuildPages();
+    NotificationService.instance.managerNotificationTapId.addListener(_managerNotificationTap);
+    if (NotificationService.instance.managerNotificationTapId.value != null) { Future<void>.microtask(_managerNotificationTap); }
+    if (!widget.state.isSuper) { _refreshManagerUnread(); _notificationTimer=Timer.periodic(const Duration(seconds:30), (_) => _refreshManagerUnread()); }
+  }
+
+  Future<void> _refreshManagerUnread() async {
+    if (widget.state.isSuper || widget.state.api.token == null || widget.state.employeeMode) return;
+    try {
+      final r=await widget.state.api.request('manager/notifications', query:{'limit':1});
+      if(mounted) setState(()=>managerUnread=int.tryParse('${r['unread_count']??0}')??0);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    NotificationService.instance.managerNotificationTapId.removeListener(_managerNotificationTap);
+    super.dispose();
+  }
+
+  void _managerNotificationTap() {
+    final id=NotificationService.instance.managerNotificationTapId.value;
+    if(id==null || !mounted || widget.state.isSuper) return;
+    NotificationService.instance.managerNotificationTapId.value=null;
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ManagerNotificationsScreen(state: widget.state, initialNotificationId: id)));
   }
 
   void _rebuildPages() {
@@ -185,6 +215,18 @@ class _AppShellState extends State<AppShell> {
             ])),
           ]),
           actions: [
+            if (!widget.state.isSuper)
+              IconButton(
+                tooltip: 'Bildirimler',
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ManagerNotificationsScreen(state: widget.state)));
+                  _refreshManagerUnread();
+                },
+                icon: Stack(clipBehavior: Clip.none, children: [
+                  const Icon(Icons.notifications_none_rounded),
+                  if (managerUnread > 0) Positioned(right:-3,top:-4,child:Container(padding:const EdgeInsets.symmetric(horizontal:5,vertical:2),decoration:BoxDecoration(color:MTheme.lime,borderRadius:BorderRadius.circular(9)),child:Text(managerUnread>99?'99+':'$managerUnread',style:const TextStyle(color:MTheme.ink,fontSize:9,fontWeight:FontWeight.w900))))
+                ]),
+              ),
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: PopupMenuButton<String>(
@@ -289,8 +331,17 @@ class _CompanySwitchScreenState extends State<_CompanySwitchScreen> {
     visible = List<dynamic>.from(widget.state.companies);
   }
 
+  Future<void> _refreshManagerUnread() async {
+    if (widget.state.isSuper || widget.state.api.token == null || widget.state.employeeMode) return;
+    try {
+      final r=await widget.state.api.request('manager/notifications', query:{'limit':1});
+      if(mounted) setState(()=>managerUnread=int.tryParse('${r['unread_count']??0}')??0);
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
+    _notificationTimer?.cancel();
     search.dispose();
     super.dispose();
   }

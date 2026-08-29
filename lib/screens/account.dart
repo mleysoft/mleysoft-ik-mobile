@@ -159,12 +159,12 @@ class _AccountScreenState extends State<AccountScreen> {
               ])),
               if (widget.state.company != null) ...[
                 const SizedBox(height: 16),
-                const TechSectionHeader(title: 'Kurumsal İletişim', subtitle: 'Personel duyuru ve bildirim yönetimi'),
+                const TechSectionHeader(title: 'Uygulama Bildirimleri', subtitle: 'Firma yetkilinize gönderilen duyuruları görüntüleyin'),
                 const SizedBox(height: 9),
                 TechCard(child: actionTile(
                   Icons.campaign_outlined,
-                  'Personel Bildirimi Gönder',
-                  'Tüm firma, departman veya seçili personele bildirim gönderin',
+                  'Bildirimler',
+                  'Firma yetkilisi olarak size gönderilen uygulama bildirimlerini görüntüleyin',
                   () => Navigator.push(context, MaterialPageRoute(builder: (_) => ManagerNotificationsScreen(state: widget.state))),
                 )),
               ],
