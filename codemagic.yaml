@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V198
+    name: MleySoft IK iOS TestFlight V200
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -65,53 +65,6 @@ workflows:
           grep -a -q "com.mleysoft.ik/location" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
           grep -a -q "com.mleysoft.ik/permissions" /tmp/mleysoft_ipa_verify/Payload/Runner.app/Runner
           echo "V121 VERIFY OK: final IPA contains registered native bridge channels, notification permission support and no Always Location API reference."
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-
-
-  ios-direct-test:
-    name: MleySoft IK iOS Direct Device Test
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    environment:
-      flutter: stable
-      xcode: latest
-      groups:
-        - app_store_credentials
-      vars:
-        BUNDLE_ID: com.mleysoft.ik
-        API_BASE_URL: https://mleysoft.com/system/ik/api/v1
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: com.mleysoft.ik
-    scripts:
-      - name: Create and configure iOS platform
-        script: |
-          rm -rf ios
-          flutter create --platforms=ios --org com.mleysoft .
-          python3 native_config/configure_ios.py
-          flutter pub get
-          test -f ios/Runner/GoogleService-Info.plist
-          test -f ios/Runner/Runner.entitlements
-          /usr/libexec/PlistBuddy -c "Print :aps-environment" ios/Runner/Runner.entitlements >/dev/null
-      - name: Apply Ad Hoc signing profile
-        script: |
-          xcode-project use-profiles
-      - name: Build installable Ad Hoc IPA
-        script: |
-          flutter build ipa --release --export-method ad-hoc --dart-define=API_BASE_URL="$API_BASE_URL"
-          IPA_FILE=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
-          test -n "$IPA_FILE"
-          rm -rf /tmp/mleysoft_adhoc_verify && mkdir -p /tmp/mleysoft_adhoc_verify
-          unzip -q "$IPA_FILE" -d /tmp/mleysoft_adhoc_verify
-          APP=/tmp/mleysoft_adhoc_verify/Payload/Runner.app
-          test -d "$APP"
-          codesign -d --entitlements :- "$APP" 2>/tmp/mleysoft_adhoc_entitlements.plist || true
-          grep -q 'aps-environment' /tmp/mleysoft_adhoc_entitlements.plist || { echo "ERROR: Ad Hoc IPA has no aps-environment entitlement"; cat /tmp/mleysoft_adhoc_entitlements.plist; exit 1; }
-          /usr/bin/security cms -D -i "$APP/embedded.mobileprovision" > /tmp/mleysoft_adhoc_profile.plist
-          /usr/libexec/PlistBuddy -c "Print :ProvisionedDevices:0" /tmp/mleysoft_adhoc_profile.plist >/dev/null || { echo "ERROR: provisioning profile has no registered devices; an Ad Hoc profile is required"; exit 1; }
-          echo "AD HOC IPA READY: this artifact can be installed only on devices included in the provisioning profile."
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
