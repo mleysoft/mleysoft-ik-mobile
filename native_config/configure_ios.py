@@ -208,42 +208,58 @@ app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
     raise SystemExit("V119 ERROR: Flutter-generated AppDelegate.swift is missing.")
 
-# V195: Do NOT take ownership of Firebase Messaging in AppDelegate.
-# firebase_messaging uses Firebase's AppDelegate proxy/method swizzling by default.
-# Previous V171-V194 code replaced the generated AppDelegate with MessagingDelegate /
-# UNUserNotificationCenterDelegate hooks and manually assigned the APNs token. On iOS
-# this can race/conflict with FlutterFire registration and leave getAPNSToken()/getToken()
-# without a usable registration token. Keep Flutter's generated AppDelegate untouched;
-# notification permission + UIApplication.registerForRemoteNotifications() are provided
-# by the local native bridge, while firebase_messaging owns APNs<->FCM association.
+# V201: Deterministic APNs registration forwarding.
+# TestFlight diagnostics proved permission is authorized but APNs token is missing.
+# Disable Firebase AppDelegate swizzling and explicitly forward Apple's token.
 app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
-    raise SystemExit("V195 ERROR: Flutter-generated AppDelegate.swift is missing.")
-app_delegate_text = app_delegate.read_text(encoding="utf-8")
-for forbidden in [
-    "Messaging.messaging().delegate = self",
-    "Messaging.messaging().apnsToken = deviceToken",
-    "UNUserNotificationCenter.current().delegate = self",
-]:
-    if forbidden in app_delegate_text:
-        raise SystemExit(f"V195 ERROR: generated AppDelegate unexpectedly contains legacy push override: {forbidden}")
+    raise SystemExit("V201 ERROR: Flutter-generated AppDelegate.swift is missing.")
+app_delegate.write_text(r'''import Flutter
+import UIKit
+import FirebaseMessaging
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    Messaging.messaging().apnsToken = deviceToken
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+}
+''', encoding="utf-8")
 
 native_plugin = root / "packages" / "mleysoft_native_bridge" / "ios" / "Classes" / "MleySoftNativeBridgePlugin.swift"
 if not native_plugin.exists():
-    raise SystemExit("V195 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
+    raise SystemExit("V201 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
 plugin_text = native_plugin.read_text(encoding="utf-8")
 for required in [
-    "com.mleysoft.ik/location",
-    "com.mleysoft.ik/permissions",
+    "com.mleysoft.ik/location", "com.mleysoft.ik/permissions",
     "requestWhenInUseAuthorization()",
     "UNUserNotificationCenter.current().requestAuthorization",
     "UIApplication.shared.registerForRemoteNotifications()",
 ]:
     if required not in plugin_text:
-        raise SystemExit(f"V195 ERROR: native plugin missing required code: {required}")
+        raise SystemExit(f"V201 ERROR: native plugin missing required code: {required}")
 if "requestAlwaysAuthorization" in plugin_text:
-    raise SystemExit("V195 ERROR: Always Location API must not exist in native plugin.")
-print("V195 VERIFY OK: FlutterFire owns APNs/FCM AppDelegate proxy; native bridge only requests permission/registration.")
+    raise SystemExit("V201 ERROR: Always Location API must not exist in native plugin.")
+print("V201 VERIFY OK: APNs callback explicitly forwarded to Firebase Messaging.")
 
 # V147: İK ERP belge yükleme gizlilik doğrulaması.
 # file_picker iOS'ta sistem belge seçiciyi kullanır; geniş dosya sistemi izni istenmez.
@@ -328,18 +344,22 @@ if pbx.exists():
 print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resources.")
 
 
-# V197: Firebase Messaging AppDelegate proxy MUST stay enabled (default).
-# Do not replace Flutter-generated AppDelegate. Firebase swizzling receives the
-# APNs device-token callback and associates it with the FCM installation.
+# V201: Explicit APNs forwarding; disable Firebase swizzling to avoid duplicate interception.
 if info_plist.exists():
     with info_plist.open("rb") as f:
-        v197_info = plistlib.load(f)
-    v197_info.pop("FirebaseAppDelegateProxyEnabled", None)
+        v201_info = plistlib.load(f)
+    v201_info["FirebaseAppDelegateProxyEnabled"] = False
     with info_plist.open("wb") as f:
-        plistlib.dump(v197_info, f, sort_keys=False)
+        plistlib.dump(v201_info, f, sort_keys=False)
 
 app_delegate = runner / "AppDelegate.swift"
 app_delegate_text = app_delegate.read_text(encoding="utf-8")
-if "Messaging.messaging().apnsToken" in app_delegate_text or "FirebaseAppDelegateProxyEnabled" in app_delegate_text:
-    raise SystemExit("V197 ERROR: legacy manual Firebase AppDelegate override remains.")
-print("V197 VERIFY OK: Firebase AppDelegate proxy default enabled; generated AppDelegate untouched.")
+for required in [
+    "import FirebaseMessaging",
+    "didRegisterForRemoteNotificationsWithDeviceToken",
+    "Messaging.messaging().apnsToken = deviceToken",
+    "super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)",
+]:
+    if required not in app_delegate_text:
+        raise SystemExit(f"V201 ERROR: AppDelegate missing APNs forwarding code: {required}")
+print("V201 VERIFY OK: Firebase proxy disabled; explicit APNs -> Firebase forwarding active.")

@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V200
+    name: MleySoft IK iOS TestFlight V201
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -23,8 +23,8 @@ workflows:
           grep -q "GoogleService-Info.plist in Resources" ios/Runner.xcodeproj/project.pbxproj
           test -f ios/Runner/Runner.entitlements
           /usr/libexec/PlistBuddy -c "Print :aps-environment" ios/Runner/Runner.entitlements | grep -q production
-          ! grep -q "Messaging.messaging().apnsToken = deviceToken" ios/Runner/AppDelegate.swift
-          ! /usr/libexec/PlistBuddy -c "Print :FirebaseAppDelegateProxyEnabled" ios/Runner/Info.plist >/dev/null 2>&1
+          grep -q "Messaging.messaging().apnsToken = deviceToken" ios/Runner/AppDelegate.swift
+          /usr/libexec/PlistBuddy -c "Print :FirebaseAppDelegateProxyEnabled" ios/Runner/Info.plist | grep -q false
           grep -q "s.dependency 'FirebaseMessaging'" packages/mleysoft_native_bridge/ios/mleysoft_native_bridge.podspec
           grep -q 'getNativePushTokens' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
       - name: Get Flutter packages and verify native plugin registration
