@@ -32,6 +32,8 @@ class NotificationService {
   final ValueNotifier<String?> birthdayTapMessage = ValueNotifier<String?>(null);
   final ValueNotifier<int?> announcementTapId = ValueNotifier<int?>(null);
   final ValueNotifier<int> unreadAnnouncementCount = ValueNotifier<int>(0);
+  // V185: Firma yöneticisi zil rozeti için ayrı okunmamış sayaç.
+  final ValueNotifier<int> unreadCompanyNotificationCount = ValueNotifier<int>(0);
   bool initialized = false;
   bool workmanagerInitialized = false;
 
@@ -257,6 +259,12 @@ class NotificationService {
     } catch (_) {
       return unreadAnnouncementCount.value;
     }
+  }
+
+  Future<void> markRemoteEmployeeNotificationDelivered(int id) async {
+    if (id <= 0) return;
+    final lastId = int.tryParse(await storage.read(key: 'employee_notice_last_notified_id') ?? '0') ?? 0;
+    if (id > lastId) await storage.write(key: 'employee_notice_last_notified_id', value: '$id');
   }
 
   Future<void> notificationReadLocally(int id, int unread) async {

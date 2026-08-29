@@ -327,7 +327,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
               ],
               const SizedBox(height: 16),
 
-              _attendanceCard(attendance, shift),
+              _attendanceCard(attendance, shift, '${data?['work_date'] ?? ''}'),
 
               const SizedBox(height: 14),
               if (shift == null)
@@ -396,7 +396,14 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
     );
   }
 
-  Widget _attendanceCard(dynamic a, dynamic sh) => Container(
+  String _displayWorkDate(String value) {
+    final d = DateTime.tryParse(value);
+    if (d == null) return value;
+    const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  Widget _attendanceCard(dynamic a, dynamic sh, String workDate) => Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: MTheme.ink,
@@ -406,7 +413,13 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('BUGÜNKÜ ÇALIŞMA', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w800)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('BUGÜNKÜ ÇALIŞMA', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w800)),
+                Text(_displayWorkDate(workDate), style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w800)),
+              ],
+            ),
             const SizedBox(height: 5),
             Text(
               sh == null

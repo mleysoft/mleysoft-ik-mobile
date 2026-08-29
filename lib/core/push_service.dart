@@ -84,9 +84,14 @@ class PushService {
           final type = '${m.data['type'] ?? ''}';
           final targetEmployee = int.tryParse('${m.data['employee_id'] ?? 0}') ?? 0;
           if (type == 'company_notification') {
-            // Firma yetkilisi bildirimi; manager oturumu tarafından doğrulanır.
+            // V185: Uygulama açıkken firma bildirimi geldiğinde zil rozeti anında artar.
+            NotificationService.instance.unreadCompanyNotificationCount.value++;
           } else if (_activeEmployeeId == null || targetEmployee <= 0 || targetEmployee != _activeEmployeeId) {
             return;
+          }
+          final notificationId = int.tryParse('${m.data['notification_id'] ?? 0}') ?? 0;
+          if (type == 'employee_notification' && notificationId > 0) {
+            unawaited(NotificationService.instance.markRemoteEmployeeNotificationDelivered(notificationId));
           }
           final n = m.notification;
           if (n != null) {
@@ -128,7 +133,11 @@ class PushService {
     final targetEmployee = int.tryParse('${message.data['employee_id'] ?? 0}') ?? 0;
     final notificationId = int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
     if (notificationId <= 0) return;
-    if (type == 'company_notification') return;
+    if (type == 'company_notification') {
+      // Firma bildirimi tıklaması uygulamayı açar; Shell liste/sayaç bilgisini API'den yeniler.
+      try { await NotificationService.instance.storage.write(key: 'pending_company_notification_id', value: '$notificationId'); } catch (_) {}
+      return;
+    }
 
     // Uygulama soğuk açılışta henüz AppState'i hydrate etmemiş olabilir.
     // Kalıcı oturum bilgisiyle hedef personeli doğrula; böylece eski bir
@@ -201,7 +210,19 @@ class PushService {
         'fcm_token': token, 'platform': Platform.isIOS ? 'ios' : 'android',
         'device_fingerprint': '${device['device_fingerprint'] ?? ''}',
       });
-      lastFcmToken = token; lastError = null; return true;
+      lastFcmToken = token; lastError = null;
+      await _tokenSubscription?.cancel();
+      _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        try {
+          final refreshedDevice = await DeviceIdentity.collect();
+          await api.request('manager/push-token', method: 'POST', data: {
+            'fcm_token': newToken, 'platform': Platform.isIOS ? 'ios' : 'android',
+            'device_fingerprint': '${refreshedDevice['device_fingerprint'] ?? ''}',
+          });
+          lastFcmToken = newToken;
+        } catch (e) { lastError = 'Firma yetkilisi FCM tokenı yenilenemedi: $e'; }
+      });
+      _retryTimer?.cancel(); _retryTimer = null; return true;
     } catch (e) { lastError = 'Firma yetkilisi push kaydı tamamlanamadı: $e'; _scheduleManagerRetry(api); return false; }
   }
 

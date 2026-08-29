@@ -262,6 +262,9 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
       }
       if (state.employeeMode && state.loggedIn) {
         await state.refreshEmployeePushRegistration();
+      } else if (state.loggedIn) {
+        // V185: iOS APNs/FCM tokenı uygulama resume olduğunda firma oturumunda da tazelenir.
+        await state.refreshManagerPushRegistration();
       }
       if (mounted) {
         setState(() {
@@ -283,6 +286,7 @@ class _MleyAppState extends State<MleyApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
+      unawaited(state.validateSessionOnResume());
       // Tek bir resume zinciri izin/APNs/push durumunu arka planda kontrol eder.
       // Önceki sürümde aynı anda iki registerEmployee çağrısı başlayabiliyordu.
       unawaited(_refreshNotificationPermissionAfterResume());

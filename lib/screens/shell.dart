@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/theme.dart';
+import '../core/notification_service.dart';
 import '../widgets/branded_loading.dart';
 import 'account.dart';
 import 'company_notifications.dart';
@@ -29,6 +30,18 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _rebuildPages();
+    if (!widget.state.isSuper) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCompanyUnread());
+    }
+  }
+
+  Future<void> _refreshCompanyUnread() async {
+    if (!mounted || widget.state.isSuper) return;
+    try {
+      final r = await widget.state.api.request('manager/company-notifications');
+      final count = int.tryParse('${r['unread_count'] ?? 0}') ?? 0;
+      NotificationService.instance.unreadCompanyNotificationCount.value = count;
+    } catch (_) {}
   }
 
   void _rebuildPages() {
@@ -187,12 +200,20 @@ class _AppShellState extends State<AppShell> {
           ]),
           actions: [
             if (!widget.state.isSuper)
-              IconButton(
-                tooltip: 'Bildirimler',
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyNotificationsScreen(state: widget.state)));
-                },
-                icon: const Icon(Icons.notifications_none_rounded),
+              ValueListenableBuilder<int>(
+                valueListenable: NotificationService.instance.unreadCompanyNotificationCount,
+                builder: (_, count, __) => IconButton(
+                  tooltip: 'Bildirimler',
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyNotificationsScreen(state: widget.state)));
+                    await _refreshCompanyUnread();
+                  },
+                  icon: Badge(
+                    isLabelVisible: count > 0,
+                    label: Text(count > 99 ? '99+' : '$count'),
+                    child: const Icon(Icons.notifications_none_rounded),
+                  ),
+                ),
               ),
             Padding(
               padding: const EdgeInsets.only(right: 8),

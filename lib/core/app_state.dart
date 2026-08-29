@@ -249,6 +249,12 @@ class AppState extends ChangeNotifier {
     subscription = r['subscription'] is Map ? Map<String,dynamic>.from(r['subscription']) : null;
     locked = false;
     notifyListeners();
+    // V185: İlk firma girişinde de FCM tokenı hemen kaydet. Önceden yalnız hydrate
+    // yolunda kayıt yapıldığı için yeni girişten sonra uygulama açılana kadar push kaçabiliyordu.
+    final cid = int.tryParse('${company?['id'] ?? 0}') ?? 0;
+    if (user?['role'] != 'super_admin' && cid > 0) {
+      unawaited(PushService.instance.registerManager(api));
+    }
     return r['requires_company'] == true;
   }
 
@@ -291,9 +297,32 @@ class AppState extends ChangeNotifier {
     company = r['company'] == null ? null : Map<String,dynamic>.from(r['company']);
     locked=false;
     notifyListeners();
+    final cid = int.tryParse('${company?['id'] ?? 0}') ?? 0;
+    if (user?['role'] != 'super_admin' && cid > 0) {
+      unawaited(PushService.instance.registerManager(api));
+    }
     return r['requires_company'] == true;
   }
 
+  Future<void> validateSessionOnResume() async {
+    if (api.token == null) return;
+    try {
+      await api.request(employeeMode ? 'employee-auth/me' : 'auth/me');
+    } on ApiException catch (e) {
+      if (e.status == 401 || e.status == 403) {
+        await api.saveToken(null);
+        await api.storage.delete(key: 'session_mode');
+        await api.storage.delete(key: 'employee_id');
+        employeeMode = false; employee = null; user = null; company = null; companies = []; locked = false;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> refreshManagerPushRegistration() async {
+    if (employeeMode || api.token == null || user == null || user?['role'] == 'super_admin' || company == null) return;
+    try { await PushService.instance.registerManager(api); } catch (_) {}
+  }
 
 
   Future<void> refreshEmployeePushRegistration() async {
