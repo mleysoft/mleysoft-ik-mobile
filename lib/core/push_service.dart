@@ -201,61 +201,102 @@ class PushService {
   Future<bool> registerManager(ApiClient api) async {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
+
     try {
+      // V193: iOS firma hesabı için izin/APNs/FCM zincirini doğrudan
+      // firebase_messaging üzerinden de tetikle. Native izin kanalı tek başına
+      // çalışsa bile Firebase SDK'nın APNs registration state'i hazır olmayabiliyordu.
       if (Platform.isIOS) {
-        // V192: Firma hesabında iOS push kaydı APNs hazır olmadan FCM'e
-        // zorlanmıyor. İzin verilmişse remote registration tetiklenir ve APNs
-        // tokenı beklenir. Hazır değilse retry devam eder; hata sessizce kaybolmaz.
-        final settings = await FirebaseMessaging.instance.getNotificationSettings();
+        var settings = await FirebaseMessaging.instance.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+          settings = await FirebaseMessaging.instance.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+        }
         if (settings.authorizationStatus == AuthorizationStatus.denied) {
           lastError = 'iOS bildirim izni kapalı.';
           return false;
         }
         await NativeNotificationPermissionService.ensureRemoteRegistration();
-        final apns = await _waitForApnsToken();
-        if (apns == null || apns.isEmpty) {
-          lastError = 'Firma iOS APNs tokenı henüz hazır değil; yeniden denenecek.';
-          _scheduleManagerRetry(api);
-          return false;
+
+        // APNs kaydı asenkron gelebilir. 15 saniyeye kadar bekle; uygulama
+        // öne geldikçe ve timer ile tekrar denenecek.
+        String? apns;
+        for (var i = 0; i < 30; i++) {
+          try {
+            apns = await FirebaseMessaging.instance.getAPNSToken();
+            if (apns != null && apns.isNotEmpty) break;
+          } catch (_) {}
+          await Future<void>.delayed(const Duration(milliseconds: 500));
         }
+        if (apns != null && apns.isNotEmpty) lastApnsToken = apns;
       }
+
       String? token;
-      try {
-        token = await FirebaseMessaging.instance.getToken();
-      } catch (e) {
-        lastError = 'Firma FCM tokenı alınamadı: $e';
-        _scheduleManagerRetry(api);
-        return false;
+      Object? tokenError;
+      // Özellikle iOS'ta APNs->FCM eşleşmesi ilk denemede birkaç saniye gecikebilir.
+      for (var i = 0; i < (Platform.isIOS ? 8 : 1); i++) {
+        try {
+          token = await FirebaseMessaging.instance.getToken();
+          if (token != null && token.isNotEmpty) break;
+        } catch (e) {
+          tokenError = e;
+        }
+        await Future<void>.delayed(const Duration(seconds: 2));
       }
       if (token == null || token.isEmpty) {
-        lastError = 'Firma FCM cihaz tokenı boş döndü.';
+        lastError = 'Firma FCM tokenı alınamadı${tokenError == null ? '' : ': $tokenError'}';
         _scheduleManagerRetry(api);
         return false;
       }
+
       final device = await DeviceIdentity.collect();
       await api.request('manager/push-token', method: 'POST', data: {
-        'fcm_token': token, 'platform': Platform.isIOS ? 'ios' : 'android',
+        'fcm_token': token,
+        'platform': Platform.isIOS ? 'ios' : 'android',
         'device_fingerprint': '${device['device_fingerprint'] ?? ''}',
+        'apns_token': Platform.isIOS ? (lastApnsToken ?? '') : '',
       });
-      lastFcmToken = token; lastError = null;
+      lastFcmToken = token;
+      lastError = null;
+
       await _tokenSubscription?.cancel();
       _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        if (newToken.isEmpty || api.token == null) return;
         try {
           final refreshedDevice = await DeviceIdentity.collect();
           await api.request('manager/push-token', method: 'POST', data: {
-            'fcm_token': newToken, 'platform': Platform.isIOS ? 'ios' : 'android',
+            'fcm_token': newToken,
+            'platform': Platform.isIOS ? 'ios' : 'android',
             'device_fingerprint': '${refreshedDevice['device_fingerprint'] ?? ''}',
+            'apns_token': Platform.isIOS ? (lastApnsToken ?? '') : '',
           });
           lastFcmToken = newToken;
-        } catch (e) { lastError = 'Firma yetkilisi FCM tokenı yenilenemedi: $e'; }
+          lastError = null;
+        } catch (e) {
+          lastError = 'Firma yetkilisi FCM tokenı yenilenemedi: $e';
+          _scheduleManagerRetry(api);
+        }
       });
-      _retryTimer?.cancel(); _retryTimer = null; return true;
-    } catch (e) { lastError = 'Firma yetkilisi push kaydı tamamlanamadı: $e'; _scheduleManagerRetry(api); return false; }
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      return true;
+    } catch (e) {
+      lastError = 'Firma yetkilisi push kaydı tamamlanamadı: $e';
+      _scheduleManagerRetry(api);
+      return false;
+    }
   }
 
   void _scheduleManagerRetry(ApiClient api) {
     if (_retryTimer?.isActive == true || api.token == null) return;
-    _retryTimer = Timer(const Duration(seconds: 8), () async { _retryTimer = null; await registerManager(api); });
+    _retryTimer = Timer(const Duration(seconds: 10), () async {
+      _retryTimer = null;
+      await registerManager(api);
+    });
   }
 
   Future<bool> registerEmployee(ApiClient api, {int? employeeId}) async {

@@ -1,0 +1,7 @@
+V193 iOS firma push düzeltmesi
+- Firma FCM kaydı firebase_messaging requestPermission + APNs registration ile doğrudan tetiklenir.
+- APNs ve FCM tokenları gecikmeli oluşursa bekleme ve tekrar deneme yapılır.
+- FCM token alınır alınmaz manager/push-token API ile aktif kayıt yenilenir.
+- Token refresh yeniden sunucuya yazılır.
+- Android akışı korunmuştur.
+- Sürüm: 1.7.3+176
