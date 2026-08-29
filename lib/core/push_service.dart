@@ -250,9 +250,28 @@ class PushService {
             apns = await FirebaseMessaging.instance.getAPNSToken();
             if (apns != null && apns.isNotEmpty) break;
           } catch (_) {}
+          final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+          final nativeApns = nativeRegistration['apns_token'] ?? '';
+          if (nativeApns.isNotEmpty) {
+            apns = nativeApns;
+            break;
+          }
+          if (nativeRegistration['status'] == 'failed') {
+            final nativeError = nativeRegistration['error'] ?? 'Bilinmeyen APNs kayıt hatası';
+            lastError = nativeError;
+            await _reportManagerPushDiagnostic(api, 'apns_native_failed', error: nativeError);
+            break;
+          }
           await Future<void>.delayed(const Duration(milliseconds: 500));
         }
-        if (apns != null && apns.isNotEmpty) { lastApnsToken = apns; await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns); } else { await _reportManagerPushDiagnostic(api, 'apns_missing', error: 'APNs token 15 saniye içinde alınamadı.'); }
+        if (apns != null && apns.isNotEmpty) {
+          lastApnsToken = apns;
+          await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns);
+        } else if (lastError == null || lastError!.isEmpty) {
+          final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+          final detail = nativeRegistration['error'] ?? '';
+          await _reportManagerPushDiagnostic(api, 'apns_missing', error: detail.isEmpty ? 'APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.' : detail);
+        }
       }
 
       String? token;

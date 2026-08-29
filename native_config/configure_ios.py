@@ -232,6 +232,10 @@ import FirebaseMessaging
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
+    let tokenHex = deviceToken.map { String(format: "%02x", $0) }.joined()
+    UserDefaults.standard.set("success", forKey: "mleysoft_apns_status")
+    UserDefaults.standard.set("", forKey: "mleysoft_apns_error")
+    UserDefaults.standard.set(tokenHex, forKey: "mleysoft_apns_token")
     Messaging.messaging().apnsToken = deviceToken
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
@@ -240,6 +244,9 @@ import FirebaseMessaging
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
+    UserDefaults.standard.set("failed", forKey: "mleysoft_apns_status")
+    UserDefaults.standard.set(error.localizedDescription, forKey: "mleysoft_apns_error")
+    UserDefaults.standard.set("", forKey: "mleysoft_apns_token")
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 }

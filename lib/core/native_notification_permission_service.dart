@@ -51,6 +51,20 @@ class NativeNotificationPermissionService {
     }
   }
 
+  static Future<Map<String, String>> getAPNsRegistrationStatus() async {
+    if (!Platform.isIOS) return const {'status': 'unsupported', 'error': '', 'apns_token': ''};
+    try {
+      final value = await _channel.invokeMapMethod<String, dynamic>('getAPNsRegistrationStatus');
+      return {
+        'status': '${value?['status'] ?? 'unknown'}',
+        'error': '${value?['error'] ?? ''}',
+        'apns_token': '${value?['apns_token'] ?? ''}',
+      };
+    } catch (e) {
+      return {'status': 'channel_error', 'error': '$e', 'apns_token': ''};
+    }
+  }
+
   static Future<Map<String, String>> getNativePushTokens() async {
     if (!Platform.isIOS) return const {'fcm_token': '', 'apns_token': ''};
     try {

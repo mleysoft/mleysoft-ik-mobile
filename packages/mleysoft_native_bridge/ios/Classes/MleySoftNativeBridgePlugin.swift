@@ -194,6 +194,14 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
         result(true)
       }
 
+    case "getAPNsRegistrationStatus":
+      let defaults = UserDefaults.standard
+      result([
+        "status": defaults.string(forKey: "mleysoft_apns_status") ?? "unknown",
+        "error": defaults.string(forKey: "mleysoft_apns_error") ?? "",
+        "apns_token": defaults.string(forKey: "mleysoft_apns_token") ?? ""
+      ])
+
     case "getNativePushTokens":
       // V197: Firebase iOS SDK'dan tokeni doğrudan native katmanda da al.
       // FlutterFire getToken gecikirse/boş dönerse aynı Firebase Messaging
