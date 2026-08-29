@@ -177,7 +177,16 @@ class PushService {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     lastApnsToken = null;
-    lastError = 'APNs cihaz tokenı alınamadı.';
+    // V203: Personel akışında da aynı ek teşhis bilgisini ekle (bkz. registerManager
+    // içindeki apns_missing yorum notu).
+    try {
+      final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+      final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
+      final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
+      lastError = 'APNs cihaz tokenı alınamadı. (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+    } catch (_) {
+      lastError = 'APNs cihaz tokenı alınamadı.';
+    }
     return null;
   }
 
@@ -270,7 +279,22 @@ class PushService {
         } else if (lastError == null || lastError!.isEmpty) {
           final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
           final detail = nativeRegistration['error'] ?? '';
-          await _reportManagerPushDiagnostic(api, 'apns_missing', error: detail.isEmpty ? 'APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.' : detail);
+          // V203: "izin authorized ama callback hiç gelmiyor" durumunda asıl
+          // nedeni ayırt etmeye yardımcı olacak iki ek sinyal ekleniyor:
+          // - system_registered=0 + ağ erişimi=evet  -> genelde Apple Developer
+          //   Portal'da bu App ID için Push Notifications capability/provisioning
+          //   profili sorunu (kod tabanının dışında, portalda kontrol edilmeli).
+          // - ağ erişimi=hayır -> cihazın bağlı olduğu ağ/güvenlik duvarı Apple
+          //   push sunucularına (courier/api.push.apple.com) erişimi engelliyor
+          //   olabilir; farklı bir Wi-Fi/hücresel ağda ve VPN kapalıyken tekrar
+          //   denenmeli.
+          final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
+          final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
+          final context = ' (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+          final message = detail.isEmpty
+              ? 'APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.$context'
+              : '$detail$context';
+          await _reportManagerPushDiagnostic(api, 'apns_missing', error: message);
         }
       }
 

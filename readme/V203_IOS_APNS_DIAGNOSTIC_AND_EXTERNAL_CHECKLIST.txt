@@ -1,0 +1,71 @@
+V203 - iOS APNs kaydı: gelişmiş teşhis + kod tabanı dışı kontrol listesi
+Sürüm: 1.8.1+184
+
+ÖZET
+V148'den bu yana (V148, V149, V151, V167, V171, V185, V190-V192, V193-V197, V199, V201)
+iOS push zinciri defalarca elden geçirildi: izin akışı, APNs<->FCM köprüsü, Firebase
+AppDelegate proxy'sinin kapatılması, native fallback token alma, sunucu tarafı hedefleme
+sorguları. Bu sürümde kod tabanı satır satır yeniden incelendi:
+
+- İzin isteme akışı (requestPermission / requestAuthorization) doğru.
+- UIApplication.shared.registerForRemoteNotifications() doğru thread'de (main) çağrılıyor.
+- AppDelegate didRegisterForRemoteNotificationsWithDeviceToken / didFailToRegister...
+  override'ları doğru yazılmış ve Messaging.messaging().apnsToken değerini set ediyor.
+- Runner.entitlements içinde aps-environment=production var; codemagic.yaml IMZALANMIŞ
+  IPA üzerinde bu entitlement'ın gerçekten var olduğunu (codesign -d --entitlements)
+  build başarısız olacak şekilde doğruluyor.
+- Firebase konsolundaki APNs Authentication Key (Development + Production, Key ID
+  NC9FX89P68, Team ID 946RQQDCB8) com.mleysoft.ik için tanımlı.
+- GoogleService-Info.plist / firebase_options.dart değerleri (API key, GCM sender ID,
+  bundle id) birebir eşleşiyor.
+
+Ekrandaki tanılama kaydı ("register_started" -> "apns_missing", izin=authorized,
+APNS=YOK, FCM=YOK, 15 saniye içinde ne başarı ne hata callback'i gelmiyor) bu koşullar
+altında normalde YALNIZCA şu iki durumda oluşur ve ikisi de bu Flutter/Swift kod
+tabanının dışındadır:
+  1) Apple Developer Portal'da com.mleysoft.ik App ID'sinin Push Notifications
+     capability'si kapalı VEYA test edilen derlemeyi imzalayan provisioning profili
+     bu capability etkinleştirilmeden önce oluşturulmuş/eski kalmış.
+  2) Cihazın o an bağlı olduğu ağ (kurumsal Wi-Fi, VPN, bazı operatör/APN kısıtlamaları)
+     Apple'ın push sunucularına (courier.push.apple.com / api.push.apple.com,
+     TCP 5223 ve 443) giden bağlantıyı engelliyor.
+
+BU SÜRÜMDE YAPILAN DEĞİŞİKLİKLER (kod tabanı içinde gerçekten iyileştirilebilen kısım)
+1) packages/mleysoft_native_bridge: getAPNsRegistrationStatus artık iki ek sinyal
+   döndürüyor:
+   - system_registered: UIApplication.shared.isRegisteredForRemoteNotifications
+     (iOS'un kendi kayıt bayrağı; bizim AppDelegate callback'imizden bağımsız).
+   - apns_network_reachable: Apple push sunucusuna kısa bir HEAD isteğiyle temel
+     ağ erişilebilirlik kontrolü.
+2) lib/core/push_service.dart: "apns_missing" ve personel akışındaki APNs zaman
+   aşımı hata mesajlarına bu iki sinyal ekleniyor. Bir sonraki başarısız denemede
+   admin panelindeki HATA sütununda şu şekilde bir metin görünecek:
+     "APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.
+      (iOS kayıt bayrağı: hayır, Apple push sunucusuna ağ erişimi: evet)"
+   Bu metne göre:
+     - ağ erişimi: hayır  -> madde (2), ağ/güvenlik duvarı sorunu.
+     - ağ erişimi: evet ama iOS kayıt bayrağı: hayır -> madde (1), Developer
+       Portal / provisioning profili sorunu.
+3) Sunucu tarafında (PHP/DB) herhangi bir şema değişikliği YAPILMADI; yeni bilgi
+   mevcut error_text alanına ek bağlam olarak yazılıyor, böylece hiçbir mevcut
+   davranış bozulmuyor.
+4) Android push zincirine hiç dokunulmadı.
+
+SONRAKİ ADIM (kod tarafında yapılabilecek bir şey kalmadı, bunlar Apple/Codemagic
+tarafında kontrol edilmeli)
+1) https://developer.apple.com/account -> Certificates, Identifiers & Profiles ->
+   Identifiers -> com.mleysoft.ik -> "Push Notifications" kutucuğunun işaretli
+   olduğunu doğrulayın.
+2) Bu capability sonradan açıldıysa, o App ID'yi kullanan TÜM provisioning
+   profillerini (özellikle Codemagic'te App Store Connect API ile otomatik
+   yönetilmeyen, elle yüklenmiş Ad Hoc profiller) SİLİP yeniden oluşturun/indirin.
+   Eski bir profil, capability sonradan açılsa bile "push'suz" kalabilir.
+3) Codemagic'te ios-testflight workflow'u otomatik imzalama kullanıyorsa, bir
+   sonraki build'de App Store Connect API anahtarının bu App ID üzerinde
+   "Push Notifications" capability'sini güncelleme yetkisi olduğundan emin olun.
+4) Test cihazını farklı bir Wi-Fi ağında (VPN kapalı, kurumsal ağ dışında) ve/veya
+   hücresel veriyle tekrar deneyin; bazı kurumsal/okul ağları Apple push
+   sunucularına giden trafiği engeller.
+5) Bir sonraki "iOS Cihaza Test Push" denemesinde HATA sütununda görünecek yeni
+   "iOS kayıt bayrağı" / "ağ erişimi" bilgisini paylaşırsanız kesin nedeni
+   birlikte doğrulayabiliriz.
