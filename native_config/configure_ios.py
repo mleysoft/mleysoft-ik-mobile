@@ -326,3 +326,46 @@ if pbx.exists():
     if "GoogleService-Info.plist in Resources" not in verify_pbx:
         raise SystemExit("V148 ERROR: Firebase plist Runner Resources'a eklenemedi.")
 print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resources.")
+
+
+# V196: deterministic APNs -> FCM bridge for iOS.
+if info_plist.exists():
+    with info_plist.open("rb") as f:
+        v196_info = plistlib.load(f)
+    v196_info["FirebaseAppDelegateProxyEnabled"] = False
+    with info_plist.open("wb") as f:
+        plistlib.dump(v196_info, f, sort_keys=False)
+
+v196_app_delegate = """import Flutter
+import UIKit
+import FirebaseMessaging
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    Messaging.messaging().apnsToken = deviceToken
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    NSLog(\"MleySoft APNs registration failed: \\(error.localizedDescription)\")
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+}
+"""
+app_delegate.write_text(v196_app_delegate, encoding="utf-8")
+print("V196 VERIFY OK: Firebase proxy disabled; APNs token explicitly forwarded to Firebase Messaging.")
