@@ -34,7 +34,6 @@ class PushService {
   String? lastApnsToken;
   String? lastError;
   int? _activeEmployeeId;
-  int? _activeManagerUserId;
 
   Future<void> bootstrapForBackground() async {
     if (_firebaseBootstrapped) return;
@@ -83,12 +82,11 @@ class PushService {
         FirebaseMessaging.onMessage.listen((m) {
           // Push bildirimi cihazın değil, oturum açmış personelin bildirimidir.
           final type = '${m.data['type'] ?? ''}';
+          final targetEmployee = int.tryParse('${m.data['employee_id'] ?? 0}') ?? 0;
           if (type == 'company_notification') {
-            final targetUser = int.tryParse('${m.data['user_id'] ?? 0}') ?? 0;
-            if (_activeManagerUserId == null || targetUser <= 0 || targetUser != _activeManagerUserId) return;
-          } else {
-            final targetEmployee = int.tryParse('${m.data['employee_id'] ?? 0}') ?? 0;
-            if (_activeEmployeeId == null || targetEmployee <= 0 || targetEmployee != _activeEmployeeId) return;
+            // Firma yetkilisi bildirimi; manager oturumu tarafından doğrulanır.
+          } else if (_activeEmployeeId == null || targetEmployee <= 0 || targetEmployee != _activeEmployeeId) {
+            return;
           }
           final n = m.notification;
           if (n != null) {
@@ -97,7 +95,7 @@ class PushService {
               n.body ?? '',
               payload: m.data['notification_id'] == null
                   ? null
-                  : (type == 'company_notification' ? 'manager_notice|${m.data['notification_id']}' : 'notice|${m.data['notification_id']}'),
+                  : 'notice|${m.data['notification_id']}',
             ));
           }
         });
@@ -127,23 +125,10 @@ class PushService {
 
   Future<void> _handleRemoteNotificationTap(RemoteMessage message) async {
     final type = '${message.data['type'] ?? ''}';
-    if (type == 'company_notification') {
-      final targetUser = int.tryParse('${message.data['user_id'] ?? 0}') ?? 0;
-      final notificationId = int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
-      if (targetUser <= 0 || notificationId <= 0) return;
-      try {
-        final mode = await NotificationService.instance.storage.read(key: 'session_mode');
-        final storedUser = int.tryParse(await NotificationService.instance.storage.read(key: 'manager_user_id') ?? '') ?? 0;
-        if (mode != 'admin' || storedUser <= 0 || storedUser != targetUser) return;
-      } catch (_) { return; }
-      await NotificationService.instance.handleRemoteManagerNotificationTap(notificationId);
-      return;
-    }
-    final targetEmployee =
-        int.tryParse('${message.data['employee_id'] ?? 0}') ?? 0;
-    final notificationId =
-        int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
-    if (targetEmployee <= 0 || notificationId <= 0) return;
+    final targetEmployee = int.tryParse('${message.data['employee_id'] ?? 0}') ?? 0;
+    final notificationId = int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
+    if (notificationId <= 0) return;
+    if (type == 'company_notification') return;
 
     // Uygulama soğuk açılışta henüz AppState'i hydrate etmemiş olabilir.
     // Kalıcı oturum bilgisiyle hedef personeli doğrula; böylece eski bir
@@ -204,43 +189,25 @@ class PushService {
     lastError = null;
   }
 
-  Future<bool> registerManager(ApiClient api, {int? userId}) async {
+  Future<bool> registerManager(ApiClient api) async {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
-    if (userId != null && userId > 0) _activeManagerUserId = userId;
     try {
-      if (Platform.isIOS) {
-        final apns = await _waitForApnsToken();
-        if (apns == null || apns.isEmpty) { _scheduleManagerRetry(api); return false; }
-      }
+      if (Platform.isIOS) { final apns = await _waitForApnsToken(); if (apns == null || apns.isEmpty) { _scheduleManagerRetry(api); return false; } }
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) { _scheduleManagerRetry(api); return false; }
       final device = await DeviceIdentity.collect();
       await api.request('manager/push-token', method: 'POST', data: {
-        'fcm_token': token,
-        'platform': Platform.isIOS ? 'ios' : 'android',
+        'fcm_token': token, 'platform': Platform.isIOS ? 'ios' : 'android',
         'device_fingerprint': '${device['device_fingerprint'] ?? ''}',
-        'device_model': '${device['device_model'] ?? ''}',
-        'os_version': '${device['os_version'] ?? ''}',
       });
-      lastFcmToken = token; lastError = null;
-      await _tokenSubscription?.cancel();
-      _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-        try { await api.request('manager/push-token', method:'POST', data:{'fcm_token':newToken,'platform':Platform.isIOS?'ios':'android','device_fingerprint':'${device['device_fingerprint']??''}','device_model':'${device['device_model']??''}','os_version':'${device['os_version']??''}'}); lastFcmToken=newToken; } catch (_) {}
-      });
-      _retryTimer?.cancel(); _retryTimer=null; return true;
-    } catch (_) { _scheduleManagerRetry(api); return false; }
+      lastFcmToken = token; lastError = null; return true;
+    } catch (e) { lastError = 'Firma yetkilisi push kaydı tamamlanamadı: $e'; _scheduleManagerRetry(api); return false; }
   }
 
   void _scheduleManagerRetry(ApiClient api) {
     if (_retryTimer?.isActive == true || api.token == null) return;
-    _retryTimer=Timer(const Duration(seconds:8),() async { _retryTimer=null; await registerManager(api,userId:_activeManagerUserId); });
-  }
-
-  Future<void> unregisterManager(ApiClient api) async {
-    _retryTimer?.cancel(); _retryTimer=null;
-    if(api.token!=null){try{await api.request('manager/push-token/revoke',method:'POST');}catch(_) {}}
-    _activeManagerUserId=null;
+    _retryTimer = Timer(const Duration(seconds: 8), () async { _retryTimer = null; await registerManager(api); });
   }
 
   Future<bool> registerEmployee(ApiClient api, {int? employeeId}) async {
@@ -313,7 +280,6 @@ class PushService {
     }
 
     _activeEmployeeId = null;
-    _activeManagerUserId = null;
     lastFcmToken = null;
     lastApnsToken = null;
 
