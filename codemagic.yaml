@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V171
+    name: MleySoft IK iOS TestFlight V195
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -21,15 +21,15 @@ workflows:
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
           test -f ios/Runner/GoogleService-Info.plist
           grep -q "GoogleService-Info.plist in Resources" ios/Runner.xcodeproj/project.pbxproj
+          test -f ios/Runner/Runner.entitlements
+          /usr/libexec/PlistBuddy -c "Print :aps-environment" ios/Runner/Runner.entitlements | grep -q production
+          ! grep -q "Messaging.messaging().apnsToken" ios/Runner/AppDelegate.swift
       - name: Get Flutter packages and verify native plugin registration
         script: |
           flutter pub get
           flutter build ios --config-only --release
           grep -R -q 'MleySoftNativeBridgePlugin' ios/Runner/GeneratedPluginRegistrant.*
           grep -R -q 'mleysoft_native_bridge' ios/Podfile.lock ios/Pods/Manifest.lock 2>/dev/null || true
-          grep -q 'FirebaseMessaging' ios/Runner/AppDelegate.swift
-          grep -q 'Messaging.messaging().delegate = self' ios/Runner/AppDelegate.swift
-          grep -q 'Messaging.messaging().apnsToken = deviceToken' ios/Runner/AppDelegate.swift
       - name: Verify iOS foreground-only location configuration
         script: |
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" ios/Runner/Info.plist
@@ -51,6 +51,9 @@ workflows:
           unzip -q "$IPA_FILE" -d /tmp/mleysoft_ipa_verify
           FINAL_PLIST=$(find /tmp/mleysoft_ipa_verify/Payload -maxdepth 2 -name Info.plist | head -1)
           test -f /tmp/mleysoft_ipa_verify/Payload/Runner.app/GoogleService-Info.plist
+          /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" /tmp/mleysoft_ipa_verify/Payload/Runner.app/GoogleService-Info.plist | grep -q '^com.mleysoft.ik$'
+          codesign -d --entitlements :- /tmp/mleysoft_ipa_verify/Payload/Runner.app 2>/tmp/mleysoft_entitlements.plist || true
+          grep -q 'aps-environment' /tmp/mleysoft_entitlements.plist || { echo "ERROR: signed IPA has no aps-environment entitlement"; cat /tmp/mleysoft_entitlements.plist; exit 1; }
           test -n "$FINAL_PLIST"
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$FINAL_PLIST"
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" "$FINAL_PLIST" >/dev/null 2>&1

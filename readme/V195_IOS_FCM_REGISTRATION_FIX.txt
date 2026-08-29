@@ -1,0 +1,8 @@
+V195 - iOS FCM registration fix
+
+- Removed custom Firebase MessagingDelegate / APNs token ownership from generated AppDelegate.
+- firebase_messaging/Firebase AppDelegate proxy now owns APNs <-> FCM token association, as expected by FlutterFire default configuration.
+- Native bridge continues to request notification permission and call registerForRemoteNotifications.
+- Codemagic verifies Runner.entitlements and the final signed IPA contains aps-environment.
+- iOS GoogleService-Info.plist bundle id remains com.mleysoft.ik.
+- Mobile version: 1.7.4+177.
