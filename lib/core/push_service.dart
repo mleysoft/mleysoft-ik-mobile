@@ -202,9 +202,36 @@ class PushService {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
     try {
-      if (Platform.isIOS) { final apns = await _waitForApnsToken(); if (apns == null || apns.isEmpty) { _scheduleManagerRetry(api); return false; } }
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token == null || token.isEmpty) { _scheduleManagerRetry(api); return false; }
+      if (Platform.isIOS) {
+        // V192: Firma hesabında iOS push kaydı APNs hazır olmadan FCM'e
+        // zorlanmıyor. İzin verilmişse remote registration tetiklenir ve APNs
+        // tokenı beklenir. Hazır değilse retry devam eder; hata sessizce kaybolmaz.
+        final settings = await FirebaseMessaging.instance.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.denied) {
+          lastError = 'iOS bildirim izni kapalı.';
+          return false;
+        }
+        await NativeNotificationPermissionService.ensureRemoteRegistration();
+        final apns = await _waitForApnsToken();
+        if (apns == null || apns.isEmpty) {
+          lastError = 'Firma iOS APNs tokenı henüz hazır değil; yeniden denenecek.';
+          _scheduleManagerRetry(api);
+          return false;
+        }
+      }
+      String? token;
+      try {
+        token = await FirebaseMessaging.instance.getToken();
+      } catch (e) {
+        lastError = 'Firma FCM tokenı alınamadı: $e';
+        _scheduleManagerRetry(api);
+        return false;
+      }
+      if (token == null || token.isEmpty) {
+        lastError = 'Firma FCM cihaz tokenı boş döndü.';
+        _scheduleManagerRetry(api);
+        return false;
+      }
       final device = await DeviceIdentity.collect();
       await api.request('manager/push-token', method: 'POST', data: {
         'fcm_token': token, 'platform': Platform.isIOS ? 'ios' : 'android',
