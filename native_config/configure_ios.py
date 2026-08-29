@@ -208,10 +208,41 @@ app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
     raise SystemExit("V119 ERROR: Flutter-generated AppDelegate.swift is missing.")
 
+# V171: Firebase/Apple notification delivery and tap handling.
+# Codemagic regenerates ios/ on every build, so configure the generated
+# AppDelegate here instead of relying on a hand-edited Xcode project.
+app_delegate_text = app_delegate.read_text(encoding="utf-8")
+if 'import FirebaseCore' not in app_delegate_text:
+    app_delegate_text = app_delegate_text.replace('import Flutter\n', 'import Flutter\nimport FirebaseCore\nimport FirebaseMessaging\nimport UserNotifications\n', 1)
+app_delegate_text = app_delegate_text.replace(
+    'class AppDelegate: FlutterAppDelegate {',
+    'class AppDelegate: FlutterAppDelegate, MessagingDelegate, UNUserNotificationCenterDelegate {'
+)
+launch_marker = 'GeneratedPluginRegistrant.register(with: self)'
+if launch_marker in app_delegate_text and 'Messaging.messaging().delegate = self' not in app_delegate_text:
+    app_delegate_text = app_delegate_text.replace(
+        launch_marker,
+        launch_marker + '''\n    if FirebaseApp.app() == nil {\n      FirebaseApp.configure()\n    }\n    Messaging.messaging().delegate = self\n    UNUserNotificationCenter.current().delegate = self\n    UIApplication.shared.registerForRemoteNotifications()''',
+        1,
+    )
+if 'didRegisterForRemoteNotificationsWithDeviceToken' not in app_delegate_text:
+    app_delegate_text += '''\n\nextension AppDelegate {\n  override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {\n    Messaging.messaging().apnsToken = deviceToken\n    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)\n  }\n\n  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {\n    // firebase_messaging Flutter plugin exposes the token to Dart; this delegate\n    // only ensures APNs <-> FCM association is established on Apple devices.\n  }\n\n  func userNotificationCenter(_ center: UNUserNotificationCenter,\n                              willPresent notification: UNNotification,\n                              withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {\n    completionHandler([.banner, .badge, .sound])\n  }\n}\n'''
+app_delegate.write_text(app_delegate_text, encoding="utf-8")
+
 native_plugin = root / "packages" / "mleysoft_native_bridge" / "ios" / "Classes" / "MleySoftNativeBridgePlugin.swift"
 if not native_plugin.exists():
     raise SystemExit("V119 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
 plugin_text = native_plugin.read_text(encoding="utf-8")
+for required_app_delegate in [
+    'import FirebaseCore',
+    'import FirebaseMessaging',
+    'UNUserNotificationCenter.current().delegate = self',
+    'Messaging.messaging().delegate = self',
+    'didRegisterForRemoteNotificationsWithDeviceToken',
+    'Messaging.messaging().apnsToken = deviceToken',
+]:
+    if required_app_delegate not in app_delegate_text:
+        raise SystemExit(f"V171 ERROR: AppDelegate missing Firebase push code: {required_app_delegate}")
 for required in [
     'com.mleysoft.ik/location',
     'com.mleysoft.ik/permissions',
@@ -224,6 +255,15 @@ if 'requestAlwaysAuthorization' in plugin_text:
     raise SystemExit("V119 ERROR: Always Location API must not exist in native plugin.")
 
 print("V119 VERIFY OK: Flutter-generated AppDelegate preserved; local iOS native bridge plugin configured.")
+
+# V171: Firebase/APNs native delivery bridge is mandatory for TestFlight/App Store.
+# The Flutter firebase_messaging plugin handles FCM in Dart; AppDelegate must
+# associate the APNs token with Messaging and own the UNUserNotificationCenter delegate.
+if "Messaging.messaging().apnsToken = deviceToken" not in app_delegate_text:
+    raise SystemExit("V171 ERROR: APNs token association is missing from AppDelegate.swift")
+if "UNUserNotificationCenter.current().delegate = self" not in app_delegate_text:
+    raise SystemExit("V171 ERROR: UNUserNotificationCenter delegate is missing from AppDelegate.swift")
+print("V171 VERIFY OK: iOS APNs/FCM AppDelegate wiring configured.")
 
 
 # V147: İK ERP belge yükleme gizlilik doğrulaması.

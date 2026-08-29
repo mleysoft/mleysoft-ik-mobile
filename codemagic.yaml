@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V121
+    name: MleySoft IK iOS TestFlight V171
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -27,6 +27,9 @@ workflows:
           flutter build ios --config-only --release
           grep -R -q 'MleySoftNativeBridgePlugin' ios/Runner/GeneratedPluginRegistrant.*
           grep -R -q 'mleysoft_native_bridge' ios/Podfile.lock ios/Pods/Manifest.lock 2>/dev/null || true
+          grep -q 'FirebaseMessaging' ios/Runner/AppDelegate.swift
+          grep -q 'Messaging.messaging().delegate = self' ios/Runner/AppDelegate.swift
+          grep -q 'Messaging.messaging().apnsToken = deviceToken' ios/Runner/AppDelegate.swift
       - name: Verify iOS foreground-only location configuration
         script: |
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" ios/Runner/Info.plist

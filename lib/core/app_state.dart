@@ -99,6 +99,7 @@ class AppState extends ChangeNotifier {
     await api.saveToken(null);
     await api.storage.delete(key: 'session_mode');
     await api.storage.delete(key: 'employee_notice_last_notified_id');
+    await api.storage.delete(key: 'employee_id');
     await api.storage.delete(key: 'pending_announcement_id');
     paymentRequired = false; subscription = null;
     employeeMode = false;
@@ -165,6 +166,7 @@ class AppState extends ChangeNotifier {
         employee = Map<String, dynamic>.from(r['employee']);
         company = Map<String, dynamic>.from(r['company']);
         user = null;
+        await api.storage.write(key: 'employee_id', value: '${employee?['id'] ?? ''}');
 
         // V168: Personel oturumu açılır açılmaz arayüz hazır hale gelir.
         // APNs/FCM kaydı arka planda yapılır; iOS APNs tokenının gecikmesi
@@ -316,6 +318,7 @@ class AppState extends ChangeNotifier {
     employeeMode = true;
     employee = Map<String,dynamic>.from(r['employee']);
     company = Map<String,dynamic>.from(r['company']);
+    await api.storage.write(key: 'employee_id', value: '${employee?['id'] ?? ''}');
     user = null;
     locked = false;
     notifyListeners();
@@ -431,6 +434,7 @@ class AppState extends ChangeNotifier {
     await api.saveToken(null);
     await api.storage.delete(key: 'session_mode');
     await api.storage.delete(key: 'employee_notice_last_notified_id');
+    await api.storage.delete(key: 'employee_id');
     await api.storage.delete(key: 'pending_announcement_id');
     paymentRequired = false;
     subscription = null;

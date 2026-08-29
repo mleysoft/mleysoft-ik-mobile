@@ -26,6 +26,7 @@ class PushService {
   bool _firebaseBootstrapped = false;
   bool _ready = false;
   bool _listenersBound = false;
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
   StreamSubscription<String>? _tokenSubscription;
   Timer? _retryTimer;
 
@@ -89,15 +90,28 @@ class PushService {
           }
           final n = m.notification;
           if (n != null) {
-            NotificationService.instance.showRemote(
+            unawaited(NotificationService.instance.showRemote(
               n.title ?? 'MleySoft İK',
               n.body ?? '',
               payload: m.data['notification_id'] == null
                   ? null
                   : 'notice|${m.data['notification_id']}',
-            );
+            ));
           }
         });
+
+        // iOS'ta sistem bildirimi arka planda/sonlandırılmışken kullanıcı
+        // bildirime bastığında flutter_local_notifications callback'i değil,
+        // Firebase Messaging bu iki yolu kullanır. Her ikisi de açılan
+        // bildirimin iç detayını uygulamada açacak şekilde işlenmelidir.
+        _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+          (m) => unawaited(_handleRemoteNotificationTap(m)),
+        );
+
+        final initial = await FirebaseMessaging.instance.getInitialMessage();
+        if (initial != null) {
+          unawaited(_handleRemoteNotificationTap(initial));
+        }
         _listenersBound = true;
       }
 
@@ -107,6 +121,31 @@ class PushService {
       _ready = false;
       lastError = 'Bildirim servisi başlatılamadı: $e';
     }
+  }
+
+  Future<void> _handleRemoteNotificationTap(RemoteMessage message) async {
+    final targetEmployee =
+        int.tryParse('${message.data['employee_id'] ?? 0}') ?? 0;
+    final notificationId =
+        int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
+    if (targetEmployee <= 0 || notificationId <= 0) return;
+
+    // Uygulama soğuk açılışta henüz AppState'i hydrate etmemiş olabilir.
+    // Kalıcı oturum bilgisiyle hedef personeli doğrula; böylece eski bir
+    // personelin bildirimi başka personele açılmaz.
+    try {
+      final mode = await NotificationService.instance.storage.read(key: 'session_mode');
+      final storedEmployeeId = int.tryParse(
+        await NotificationService.instance.storage.read(key: 'employee_id') ?? '',
+      ) ?? 0;
+      if (mode != 'employee' || storedEmployeeId <= 0 || storedEmployeeId != targetEmployee) {
+        return;
+      }
+    } catch (_) {
+      return;
+    }
+
+    await NotificationService.instance.handleRemoteNotificationTap(notificationId);
   }
 
   Future<String?> _waitForApnsToken() async {
@@ -209,6 +248,8 @@ class PushService {
     _retryTimer = null;
     await _tokenSubscription?.cancel();
     _tokenSubscription = null;
+    await _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription = null;
 
     // Sunucudaki personel-cihaz eşleşmesini oturum kapanmadan pasifleştir.
     if (api.token != null) {

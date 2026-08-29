@@ -1,0 +1,40 @@
+MleySoft İK V171 / build 1.7.0+164
+
+IOS PUSH FIX
+
+1) iOS native AppDelegate is now configured on every Codemagic build with:
+- FirebaseCore / FirebaseMessaging
+- Messaging.messaging().delegate = self
+- UNUserNotificationCenter.current().delegate = self
+- UIApplication.shared.registerForRemoteNotifications()
+- didRegisterForRemoteNotificationsWithDeviceToken -> Messaging.messaging().apnsToken
+- foreground banner/badge/sound presentation
+
+2) Flutter Firebase notification tap handling now covers both required paths:
+- FirebaseMessaging.getInitialMessage() for a terminated app
+- FirebaseMessaging.onMessageOpenedApp for a background app
+
+3) A tapped employee notification is validated against the persisted employee session
+(employee_id + session_mode) before its detail is opened. Old employee notifications cannot
+open for a different employee.
+
+4) Employee ID is persisted after employee login/hydration and removed on logout/payment
+access reset.
+
+5) Existing flutter_local_notifications tap handling remains in place for local notifications.
+
+6) Server FCM payload continues to send an alert APNs push with notification_id/company_id/employee_id.
+
+IMPORTANT EXTERNAL APNs REQUIREMENT
+Firebase must have an APNs Authentication Key (.p8) configured for the iOS app
+com.mleysoft.ik under Firebase Console > Project Settings > Cloud Messaging.
+Apple Team ID and APNs Key ID must match the Apple Developer account. At least one APNs
+authentication key is required for FCM delivery to Apple devices.
+
+APP STORE ACCOUNT REGISTRATION
+No company registration link/button is added to the mobile app. For the safest 3.1.1 posture,
+company account creation remains outside the mobile app. A neutral message such as
+"Firma hesabınız yoksa kurum yöneticinizle iletişime geçin." is acceptable as informational
+copy, but a web URL, clickable button, QR code, or wording that directly steers users to an
+external subscription/purchase page should not be added to the iOS build without confirming
+Apple's applicable exception.

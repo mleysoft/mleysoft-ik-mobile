@@ -99,6 +99,12 @@ class NotificationService {
     }
   }
 
+  Future<void> handleRemoteNotificationTap(int id) async {
+    if (id <= 0) return;
+    await storage.write(key: 'pending_announcement_id', value: '$id');
+    announcementTapId.value = id;
+  }
+
   Future<int?> consumeAnnouncementTapId() async {
     final direct = announcementTapId.value;
     announcementTapId.value = null;
