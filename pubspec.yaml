@@ -20,7 +20,7 @@ dependencies:
   pdf: ^3.11.1
   flutter_local_notifications: ^17.2.2
   firebase_core: 4.11.0
-  firebase_messaging: 16.4.3
+  firebase_messaging: 16.4.1
   workmanager: ^0.10.7
   cupertino_icons: ^1.0.8
   app_links: ^6.3.2
