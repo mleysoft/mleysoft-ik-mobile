@@ -65,9 +65,6 @@ class PushService {
       // izin onaylandıktan sonra ikinci MleySoft izin ekranının görünmesi engellenir.
       if (Platform.isIOS) {
         final settings = await FirebaseMessaging.instance.getNotificationSettings();
-        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-            settings.authorizationStatus == AuthorizationStatus.provisional) {
-        }
         await FirebaseMessaging.instance
             .setForegroundNotificationPresentationOptions(
           alert: true,
@@ -157,16 +154,13 @@ class PushService {
 
   Future<String?> _waitForApnsToken() async {
     if (!Platform.isIOS) return '';
-
-    // V204: APNs kaydını firebase_messaging'in standart iOS akışına bırak.
-    // Manuel native register/callback köprüsü kullanılmıyor. İzin verildikten
-    // sonra APNs token asenkron gelebileceği için kontrollü şekilde beklenir.
+    // V204: Let firebase_messaging own APNs registration. Permission must be
+    // granted first; then wait for FlutterFire to expose Apple's APNs token.
     for (var i = 0; i < 30; i++) {
       try {
         final token = await FirebaseMessaging.instance.getAPNSToken();
         if (token != null && token.isNotEmpty) {
           lastApnsToken = token;
-          lastError = null;
           return token;
         }
       } catch (e) {
@@ -175,7 +169,7 @@ class PushService {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     lastApnsToken = null;
-    lastError = 'APNs cihaz tokenı 15 saniye içinde alınamadı.';
+    lastError = 'APNs token 15 saniye içinde alınamadı.';
     return null;
   }
 
@@ -238,19 +232,14 @@ class PushService {
           await _reportManagerPushDiagnostic(api, 'permission_denied', error: lastError);
           return false;
         }
-        // V204: firebase_messaging 16.4.3 standart APNs akışı.
-        // Native bridge ile registerForRemoteNotifications/callback zincirine
-        // müdahale etmiyoruz; FlutterFire APNs tokenını doğrudan yönetiyor.
+
         final apns = await _waitForApnsToken();
-        if (apns != null && apns.isNotEmpty) {
-          await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns);
-        } else {
-          await _reportManagerPushDiagnostic(
-            api,
-            'apns_missing',
-            error: lastError ?? 'APNs token alınamadı.',
-          );
+        if (apns == null || apns.isEmpty) {
+          await _reportManagerPushDiagnostic(api, 'apns_missing', error: lastError);
+          _scheduleManagerRetry(api);
+          return false;
         }
+        await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns);
       }
 
       String? token;

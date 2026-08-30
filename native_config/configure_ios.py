@@ -208,42 +208,22 @@ app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
     raise SystemExit("V119 ERROR: Flutter-generated AppDelegate.swift is missing.")
 
-# V203: Use Flutter/Firebase's standard AppDelegate path.
-# firebase_messaging 16.5+ has a reported iOS/UIScene APNs-token regression.
-# V203 pins 16.4.3 and restores the default Firebase AppDelegate proxy/swizzling path.
-app_delegate = runner / "AppDelegate.swift"
-if not app_delegate.exists():
-    raise SystemExit("V203 ERROR: Flutter-generated AppDelegate.swift is missing.")
-app_delegate.write_text(r'''import Flutter
-import UIKit
-
-@main
-@objc class AppDelegate: FlutterAppDelegate {
-  override func application(
-    _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-  ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-}
-''', encoding="utf-8")
-
+# V204: Keep Flutter-generated AppDelegate and Firebase Messaging default
+# AppDelegate proxy/swizzling. Do not manually forward the APNs token.
 native_plugin = root / "packages" / "mleysoft_native_bridge" / "ios" / "Classes" / "MleySoftNativeBridgePlugin.swift"
 if not native_plugin.exists():
-    raise SystemExit("V203 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
+    raise SystemExit("V204 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
 plugin_text = native_plugin.read_text(encoding="utf-8")
 for required in [
     "com.mleysoft.ik/location", "com.mleysoft.ik/permissions",
     "requestWhenInUseAuthorization()",
     "UNUserNotificationCenter.current().requestAuthorization",
-    "UIApplication.shared.registerForRemoteNotifications()",
 ]:
     if required not in plugin_text:
-        raise SystemExit(f"V203 ERROR: native plugin missing required code: {required}")
+        raise SystemExit(f"V204 ERROR: native plugin missing required code: {required}")
 if "requestAlwaysAuthorization" in plugin_text:
-    raise SystemExit("V203 ERROR: Always Location API must not exist in native plugin.")
-print("V203 VERIFY OK: standard Flutter AppDelegate restored; Firebase swizzling path enabled.")
+    raise SystemExit("V204 ERROR: Always Location API must not exist in native plugin.")
+print("V204 VERIFY OK: Flutter AppDelegate preserved; Firebase Messaging default APNs proxy active.")
 
 # V147: İK ERP belge yükleme gizlilik doğrulaması.
 # file_picker iOS'ta sistem belge seçiciyi kullanır; geniş dosya sistemi izni istenmez.
@@ -328,11 +308,13 @@ if pbx.exists():
 print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resources.")
 
 
-# V203: Firebase AppDelegate proxy must remain at its default (enabled).
+# V204: FirebaseAppDelegateProxyEnabled is intentionally not written.
+# FlutterFire/Firebase Messaging uses its default AppDelegate proxy.
 if info_plist.exists():
     with info_plist.open("rb") as f:
-        v203_info = plistlib.load(f)
-    v203_info.pop("FirebaseAppDelegateProxyEnabled", None)
-    with info_plist.open("wb") as f:
-        plistlib.dump(v203_info, f, sort_keys=False)
-print("V203 VERIFY OK: FirebaseAppDelegateProxyEnabled override removed (default swizzling enabled).")
+        v204_info = plistlib.load(f)
+    if "FirebaseAppDelegateProxyEnabled" in v204_info:
+        del v204_info["FirebaseAppDelegateProxyEnabled"]
+        with info_plist.open("wb") as f:
+            plistlib.dump(v204_info, f, sort_keys=False)
+print("V204 VERIFY OK: Firebase AppDelegate proxy left at default (enabled).")
