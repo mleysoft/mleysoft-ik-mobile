@@ -381,22 +381,69 @@ class PushService {
   Future<bool> registerEmployee(ApiClient api, {int? employeeId}) async {
     if (!_ready) await initialize();
     if (!_ready || api.token == null) return false;
-    if (employeeId != null && employeeId > 0) {
-      _activeEmployeeId = employeeId;
-    }
+    if (employeeId != null && employeeId > 0) _activeEmployeeId = employeeId;
 
     try {
+      // V212: Firma hesabında çalışan sağlam kayıt zincirinin aynısını personel
+      // oturumuna da uygula. Özellikle ilk kurulumda iOS izin verildikten hemen
+      // sonra APNs tokenı birkaç saniye gecikebildiği için getToken() çağrısını
+      // APNs hazır olmadan yapmıyoruz.
       if (Platform.isIOS) {
-        final apns = await _waitForApnsToken();
+        var settings = await FirebaseMessaging.instance.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+          settings = await FirebaseMessaging.instance.requestPermission(
+            alert: true, badge: true, sound: true, provisional: false,
+          );
+        }
+        if (settings.authorizationStatus == AuthorizationStatus.denied) {
+          lastError = 'iOS bildirim izni kapalı.';
+          return false;
+        }
+        await NativeNotificationPermissionService.ensureRemoteRegistration();
+
+        String? apns;
+        for (var i = 0; i < 30; i++) {
+          try {
+            apns = await FirebaseMessaging.instance.getAPNSToken();
+            if (apns != null && apns.isNotEmpty) break;
+          } catch (_) {}
+          try {
+            final native = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+            final nativeApns = native['apns_token'] ?? '';
+            if (nativeApns.isNotEmpty) { apns = nativeApns; break; }
+            if (native['status'] == 'failed') {
+              lastError = native['error'] ?? 'APNs kayıt hatası';
+              break;
+            }
+          } catch (_) {}
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
         if (apns == null || apns.isEmpty) {
+          lastError ??= 'Personel APNs tokenı henüz hazır değil.';
           _scheduleRetry(api);
           return false;
         }
+        lastApnsToken = apns;
       }
 
-      final token = await FirebaseMessaging.instance.getToken();
+      String? token;
+      Object? tokenError;
+      for (var i = 0; i < (Platform.isIOS ? 8 : 3); i++) {
+        try {
+          token = await FirebaseMessaging.instance.getToken();
+          if (token != null && token.isNotEmpty) break;
+        } catch (e) { tokenError = e; }
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+      if ((token == null || token.isEmpty) && Platform.isIOS) {
+        final native = await NativeNotificationPermissionService.getNativePushTokens();
+        final nativeApns = native['apns_token'] ?? '';
+        final nativeFcm = native['fcm_token'] ?? '';
+        if (nativeApns.isNotEmpty) lastApnsToken = nativeApns;
+        if (nativeFcm.isNotEmpty) token = nativeFcm;
+      }
       if (token == null || token.isEmpty) {
-        lastError = 'FCM cihaz tokenı alınamadı.';
+        lastError = 'Personel FCM cihaz tokenı alınamadı${tokenError == null ? '' : ': $tokenError'}';
         _scheduleRetry(api);
         return false;
       }
@@ -404,21 +451,26 @@ class PushService {
       final device = await DeviceIdentity.collect();
       await _registerToken(api, token, device);
 
+      // Tek cihazda firma -> personel veya personel -> firma geçişinde listener
+      // daima o anki oturumun endpointine kayıt yapsın.
       await _tokenSubscription?.cancel();
-      _tokenSubscription =
-          FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      _tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        if (newToken.isEmpty || api.token == null || _activeEmployeeId == null) return;
         try {
-          await _registerToken(api, newToken, device);
+          final refreshedDevice = await DeviceIdentity.collect();
+          await _registerToken(api, newToken, refreshedDevice);
         } catch (e) {
-          lastError = 'FCM token yenilenemedi: $e';
+          lastError = 'Personel FCM tokenı yenilenemedi: $e';
+          _scheduleRetry(api);
         }
       });
 
       _retryTimer?.cancel();
       _retryTimer = null;
+      lastError = null;
       return true;
     } catch (e) {
-      lastError = 'Push cihaz kaydı tamamlanamadı: $e';
+      lastError = 'Personel push cihaz kaydı tamamlanamadı: $e';
       _scheduleRetry(api);
       return false;
     }
