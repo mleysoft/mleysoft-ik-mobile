@@ -208,15 +208,14 @@ app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
     raise SystemExit("V119 ERROR: Flutter-generated AppDelegate.swift is missing.")
 
-# V201: Deterministic APNs registration forwarding.
-# TestFlight diagnostics proved permission is authorized but APNs token is missing.
-# Disable Firebase AppDelegate swizzling and explicitly forward Apple's token.
+# V203: Use Flutter/Firebase's standard AppDelegate path.
+# firebase_messaging 16.5+ has a reported iOS/UIScene APNs-token regression.
+# V203 pins 16.4.3 and restores the default Firebase AppDelegate proxy/swizzling path.
 app_delegate = runner / "AppDelegate.swift"
 if not app_delegate.exists():
-    raise SystemExit("V201 ERROR: Flutter-generated AppDelegate.swift is missing.")
+    raise SystemExit("V203 ERROR: Flutter-generated AppDelegate.swift is missing.")
 app_delegate.write_text(r'''import Flutter
 import UIKit
-import FirebaseMessaging
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -227,34 +226,12 @@ import FirebaseMessaging
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-
-  override func application(
-    _ application: UIApplication,
-    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-  ) {
-    let tokenHex = deviceToken.map { String(format: "%02x", $0) }.joined()
-    UserDefaults.standard.set("success", forKey: "mleysoft_apns_status")
-    UserDefaults.standard.set("", forKey: "mleysoft_apns_error")
-    UserDefaults.standard.set(tokenHex, forKey: "mleysoft_apns_token")
-    Messaging.messaging().apnsToken = deviceToken
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
-  }
-
-  override func application(
-    _ application: UIApplication,
-    didFailToRegisterForRemoteNotificationsWithError error: Error
-  ) {
-    UserDefaults.standard.set("failed", forKey: "mleysoft_apns_status")
-    UserDefaults.standard.set(error.localizedDescription, forKey: "mleysoft_apns_error")
-    UserDefaults.standard.set("", forKey: "mleysoft_apns_token")
-    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
-  }
 }
 ''', encoding="utf-8")
 
 native_plugin = root / "packages" / "mleysoft_native_bridge" / "ios" / "Classes" / "MleySoftNativeBridgePlugin.swift"
 if not native_plugin.exists():
-    raise SystemExit("V201 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
+    raise SystemExit("V203 ERROR: mleysoft_native_bridge iOS plugin source is missing.")
 plugin_text = native_plugin.read_text(encoding="utf-8")
 for required in [
     "com.mleysoft.ik/location", "com.mleysoft.ik/permissions",
@@ -263,10 +240,10 @@ for required in [
     "UIApplication.shared.registerForRemoteNotifications()",
 ]:
     if required not in plugin_text:
-        raise SystemExit(f"V201 ERROR: native plugin missing required code: {required}")
+        raise SystemExit(f"V203 ERROR: native plugin missing required code: {required}")
 if "requestAlwaysAuthorization" in plugin_text:
-    raise SystemExit("V201 ERROR: Always Location API must not exist in native plugin.")
-print("V201 VERIFY OK: APNs callback explicitly forwarded to Firebase Messaging.")
+    raise SystemExit("V203 ERROR: Always Location API must not exist in native plugin.")
+print("V203 VERIFY OK: standard Flutter AppDelegate restored; Firebase swizzling path enabled.")
 
 # V147: İK ERP belge yükleme gizlilik doğrulaması.
 # file_picker iOS'ta sistem belge seçiciyi kullanır; geniş dosya sistemi izni istenmez.
@@ -351,22 +328,11 @@ if pbx.exists():
 print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resources.")
 
 
-# V201: Explicit APNs forwarding; disable Firebase swizzling to avoid duplicate interception.
+# V203: Firebase AppDelegate proxy must remain at its default (enabled).
 if info_plist.exists():
     with info_plist.open("rb") as f:
-        v201_info = plistlib.load(f)
-    v201_info["FirebaseAppDelegateProxyEnabled"] = False
+        v203_info = plistlib.load(f)
+    v203_info.pop("FirebaseAppDelegateProxyEnabled", None)
     with info_plist.open("wb") as f:
-        plistlib.dump(v201_info, f, sort_keys=False)
-
-app_delegate = runner / "AppDelegate.swift"
-app_delegate_text = app_delegate.read_text(encoding="utf-8")
-for required in [
-    "import FirebaseMessaging",
-    "didRegisterForRemoteNotificationsWithDeviceToken",
-    "Messaging.messaging().apnsToken = deviceToken",
-    "super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)",
-]:
-    if required not in app_delegate_text:
-        raise SystemExit(f"V201 ERROR: AppDelegate missing APNs forwarding code: {required}")
-print("V201 VERIFY OK: Firebase proxy disabled; explicit APNs -> Firebase forwarding active.")
+        plistlib.dump(v203_info, f, sort_keys=False)
+print("V203 VERIFY OK: FirebaseAppDelegateProxyEnabled override removed (default swizzling enabled).")

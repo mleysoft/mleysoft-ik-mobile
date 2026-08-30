@@ -2,7 +2,6 @@ import Flutter
 import UIKit
 import CoreLocation
 import UserNotifications
-import FirebaseMessaging
 
 public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocationManagerDelegate {
   private let locationManager = CLLocationManager()
@@ -195,47 +194,12 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
       }
 
     case "getAPNsRegistrationStatus":
-      // V203: Sadece bizim AppDelegate callback'imizin durumunu değil, iOS'un
-      // kendi kayıt bayrağını (isRegisteredForRemoteNotifications) ve Apple push
-      // sunucularına temel ağ erişimini de raporla. "İzin authorized ama callback
-      // hiç tetiklenmiyor" senaryosunda bu ikisi asıl nedeni (Apple Developer
-      // Portal'da Push Notifications capability/provisioning profili sorunu mu,
-      // yoksa cihazın ağının Apple push sunucularını engellemesi mi) ayırt etmeye
-      // yardımcı olur; ikisi de bu native kod tabanının dışındadır.
       let defaults = UserDefaults.standard
-      let systemRegistered = UIApplication.shared.isRegisteredForRemoteNotifications
-      var probeRequest = URLRequest(url: URL(string: "https://api.push.apple.com")!)
-      probeRequest.httpMethod = "HEAD"
-      probeRequest.timeoutInterval = 3
-      let probeTask = URLSession.shared.dataTask(with: probeRequest) { _, _, error in
-        let reachable = (error == nil)
-        DispatchQueue.main.async {
-          result([
-            "status": defaults.string(forKey: "mleysoft_apns_status") ?? "unknown",
-            "error": defaults.string(forKey: "mleysoft_apns_error") ?? "",
-            "apns_token": defaults.string(forKey: "mleysoft_apns_token") ?? "",
-            "system_registered": systemRegistered ? "1" : "0",
-            "apns_network_reachable": reachable ? "1" : "0"
-          ])
-        }
-      }
-      probeTask.resume()
-
-    case "getNativePushTokens":
-      // V197: Firebase iOS SDK'dan tokeni doğrudan native katmanda da al.
-      // FlutterFire getToken gecikirse/boş dönerse aynı Firebase Messaging
-      // instance'ının gerçek registration tokenı yedek yol olarak kullanılır.
-      DispatchQueue.main.async {
-        UIApplication.shared.registerForRemoteNotifications()
-        Messaging.messaging().token { fcmToken, error in
-          if let error {
-            result(FlutterError(code: "FCM_TOKEN_ERROR", message: error.localizedDescription, details: nil))
-            return
-          }
-          let apns = Messaging.messaging().apnsToken?.map { String(format: "%02x", $0) }.joined() ?? ""
-          result(["fcm_token": fcmToken ?? "", "apns_token": apns])
-        }
-      }
+      result([
+        "status": defaults.string(forKey: "mleysoft_apns_status") ?? "unknown",
+        "error": defaults.string(forKey: "mleysoft_apns_error") ?? "",
+        "apns_token": defaults.string(forKey: "mleysoft_apns_token") ?? ""
+      ])
 
     case "openNotificationSettings":
       DispatchQueue.main.async {

@@ -1,5 +1,5 @@
 name: mleysoft_ik
-version: 1.8.1+184
+version: 1.8.2+185
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
@@ -20,7 +20,7 @@ dependencies:
   pdf: ^3.11.1
   flutter_local_notifications: ^17.2.2
   firebase_core: ^4.14.0
-  firebase_messaging: ^16.6.0
+  firebase_messaging: 16.4.3
   workmanager: ^0.10.7
   cupertino_icons: ^1.0.8
   app_links: ^6.3.2
