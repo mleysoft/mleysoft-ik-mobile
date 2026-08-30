@@ -407,7 +407,7 @@ print("V148 VERIFY OK: Firebase iOS plist copied and registered in Runner resour
 if info_plist.exists():
     with info_plist.open("rb") as f:
         v201_info = plistlib.load(f)
-    v201_info["FirebaseAppDelegateProxyEnabled"] = False
+    v201_info.pop("FirebaseAppDelegateProxyEnabled", None)
     with info_plist.open("wb") as f:
         plistlib.dump(v201_info, f, sort_keys=False)
 
@@ -421,45 +421,47 @@ for required in [
 ]:
     if required not in app_delegate_text:
         raise SystemExit(f"V201 ERROR: AppDelegate missing APNs forwarding code: {required}")
-print("V205 VERIFY OK: Firebase proxy disabled; native APNs -> Firebase forwarding active.")
+print("V208 VERIFY OK: Firebase AppDelegate proxy uses default ENABLED behavior; native diagnostics retained.")
 
 
-# V207: Force Push Notifications capability into the generated Xcode target.
-# Runner.entitlements alone is not enough if the generated target drops the capability metadata.
+# V208: Force entitlements on EVERY Runner build configuration (Debug/Profile/Release).
+# V207 only patched the first matching PRODUCT_BUNDLE_IDENTIFIER occurrence; Release could remain unsigned for APNs.
 pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
 if not pbx.exists():
-    raise SystemExit("V207 ERROR: Runner.xcodeproj bulunamadi.")
+    raise SystemExit("V208 ERROR: Runner.xcodeproj bulunamadi.")
 t = pbx.read_text(encoding="utf-8")
 
-# Ensure every Runner build configuration that has our bundle id also points at Runner.entitlements.
-needle = "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;"
-replacement = needle + "\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;"
-for _ in range(10):
-    # Only replace occurrences not already followed by CODE_SIGN_ENTITLEMENTS.
-    pos = t.find(needle)
-    if pos < 0:
-        break
-    after = t[pos:pos+220]
-    if "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" not in after:
-        t = t[:pos] + replacement + t[pos+len(needle):]
-    # move past this occurrence by temporarily marking it
-    t = t[:pos] + t[pos:].replace(needle, "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik; /* V207_SEEN */", 1)
-t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik; /* V207_SEEN */", needle)
+bundle_line = "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;"
+lines = t.splitlines()
+out = []
+for i, line in enumerate(lines):
+    out.append(line)
+    if bundle_line in line:
+        # Add entitlement binding immediately after every Runner bundle-id line.
+        next_few = "\n".join(lines[i+1:i+5])
+        if "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" not in next_few:
+            indent = line[:len(line)-len(line.lstrip())]
+            out.append(indent + "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;")
+t = "\n".join(out) + ("\n" if t.endswith("\n") else "")
 
-# Add Xcode Push Notifications SystemCapability to Runner target attributes when absent.
+# Push Notifications capability metadata.
 if "com.apple.Push =" not in t:
     marker = "CreatedOnToolsVersion ="
     idx = t.find(marker)
     if idx < 0:
-        raise SystemExit("V207 ERROR: Xcode TargetAttributes bolumu bulunamadi.")
+        raise SystemExit("V208 ERROR: Xcode TargetAttributes bolumu bulunamadi.")
     line_end = t.find(";", idx) + 1
     capability = "\n\t\t\t\t\t\tSystemCapabilities = {\n\t\t\t\t\t\t\tcom.apple.Push = {\n\t\t\t\t\t\t\t\tenabled = 1;\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t};"
     t = t[:line_end] + capability + t[line_end:]
 
 pbx.write_text(t, encoding="utf-8")
 verify = pbx.read_text(encoding="utf-8")
-if "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" not in verify:
-    raise SystemExit("V207 ERROR: CODE_SIGN_ENTITLEMENTS Runner targetina baglanamadi.")
+bundle_count = verify.count(bundle_line)
+ent_count = verify.count("CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;")
+if bundle_count < 3:
+    raise SystemExit(f"V208 ERROR: Runner build configuration sayisi beklenenden az: {bundle_count}")
+if ent_count < bundle_count:
+    raise SystemExit(f"V208 ERROR: Tum Runner configleri entitlement almadi. bundle={bundle_count}, entitlement={ent_count}")
 if "com.apple.Push =" not in verify:
-    raise SystemExit("V207 ERROR: Push Notifications SystemCapability eklenemedi.")
-print("V207 VERIFY OK: Runner target has Push capability + Runner.entitlements binding.")
+    raise SystemExit("V208 ERROR: Push Notifications SystemCapability eklenemedi.")
+print(f"V208 VERIFY OK: ALL Runner configs use Runner.entitlements (bundle={bundle_count}, entitlement={ent_count}).")
