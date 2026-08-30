@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api.dart';
 import 'device_identity.dart';
 import 'notification_service.dart';
+import 'native_notification_permission_service.dart';
 import '../firebase_options.dart';
 
 @pragma('vm:entry-point')
@@ -65,6 +66,10 @@ class PushService {
       // izin onaylandıktan sonra ikinci MleySoft izin ekranının görünmesi engellenir.
       if (Platform.isIOS) {
         final settings = await FirebaseMessaging.instance.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          await NativeNotificationPermissionService.ensureRemoteRegistration();
+        }
         await FirebaseMessaging.instance
             .setForegroundNotificationPresentationOptions(
           alert: true,
@@ -154,8 +159,10 @@ class PushService {
 
   Future<String?> _waitForApnsToken() async {
     if (!Platform.isIOS) return '';
-    // V204: Let firebase_messaging own APNs registration. Permission must be
-    // granted first; then wait for FlutterFire to expose Apple's APNs token.
+    await NativeNotificationPermissionService.ensureRemoteRegistration();
+
+    // V204: iOS APNs kaydı asenkron gelebilir. Mevcut sunucu/token akışını
+    // değiştirmeden APNs tokenını 15 saniyeye kadar bekle.
     for (var i = 0; i < 30; i++) {
       try {
         final token = await FirebaseMessaging.instance.getAPNSToken();
@@ -169,7 +176,16 @@ class PushService {
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     lastApnsToken = null;
-    lastError = 'APNs token 15 saniye içinde alınamadı.';
+    // V203: Personel akışında da aynı ek teşhis bilgisini ekle (bkz. registerManager
+    // içindeki apns_missing yorum notu).
+    try {
+      final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+      final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
+      final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
+      lastError = 'APNs cihaz tokenı alınamadı. (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+    } catch (_) {
+      lastError = 'APNs cihaz tokenı alınamadı.';
+    }
     return null;
   }
 
@@ -232,14 +248,53 @@ class PushService {
           await _reportManagerPushDiagnostic(api, 'permission_denied', error: lastError);
           return false;
         }
+        await NativeNotificationPermissionService.ensureRemoteRegistration();
 
-        final apns = await _waitForApnsToken();
-        if (apns == null || apns.isEmpty) {
-          await _reportManagerPushDiagnostic(api, 'apns_missing', error: lastError);
-          _scheduleManagerRetry(api);
-          return false;
+        // APNs kaydı asenkron gelebilir. 15 saniyeye kadar bekle; uygulama
+        // öne geldikçe ve timer ile tekrar denenecek.
+        String? apns;
+        for (var i = 0; i < 30; i++) {
+          try {
+            apns = await FirebaseMessaging.instance.getAPNSToken();
+            if (apns != null && apns.isNotEmpty) break;
+          } catch (_) {}
+          final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+          final nativeApns = nativeRegistration['apns_token'] ?? '';
+          if (nativeApns.isNotEmpty) {
+            apns = nativeApns;
+            break;
+          }
+          if (nativeRegistration['status'] == 'failed') {
+            final nativeError = nativeRegistration['error'] ?? 'Bilinmeyen APNs kayıt hatası';
+            lastError = nativeError;
+            await _reportManagerPushDiagnostic(api, 'apns_native_failed', error: nativeError);
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 500));
         }
-        await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns);
+        if (apns != null && apns.isNotEmpty) {
+          lastApnsToken = apns;
+          await _reportManagerPushDiagnostic(api, 'apns_ready', apns: apns);
+        } else if (lastError == null || lastError!.isEmpty) {
+          final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
+          final detail = nativeRegistration['error'] ?? '';
+          // V203: "izin authorized ama callback hiç gelmiyor" durumunda asıl
+          // nedeni ayırt etmeye yardımcı olacak iki ek sinyal ekleniyor:
+          // - system_registered=0 + ağ erişimi=evet  -> genelde Apple Developer
+          //   Portal'da bu App ID için Push Notifications capability/provisioning
+          //   profili sorunu (kod tabanının dışında, portalda kontrol edilmeli).
+          // - ağ erişimi=hayır -> cihazın bağlı olduğu ağ/güvenlik duvarı Apple
+          //   push sunucularına (courier/api.push.apple.com) erişimi engelliyor
+          //   olabilir; farklı bir Wi-Fi/hücresel ağda ve VPN kapalıyken tekrar
+          //   denenmeli.
+          final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
+          final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
+          final context = ' (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+          final message = detail.isEmpty
+              ? 'APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.$context'
+              : '$detail$context';
+          await _reportManagerPushDiagnostic(api, 'apns_missing', error: message);
+        }
       }
 
       String? token;
@@ -253,6 +308,17 @@ class PushService {
           tokenError = e;
         }
         await Future<void>.delayed(const Duration(seconds: 2));
+      }
+      // V197: iOS'ta FlutterFire token yolu boş kalırsa Firebase Messaging
+      // native SDK'sından aynı tokenı doğrudan al. Bu iki yol aynı Firebase
+      // installation'ını kullanır; amaç platform-channel zamanlama sorununu
+      // sunucu kaydından tamamen ayırmaktır.
+      if ((token == null || token.isEmpty) && Platform.isIOS) {
+        final nativeTokens = await NativeNotificationPermissionService.getNativePushTokens();
+        final nativeApns = nativeTokens['apns_token'] ?? '';
+        final nativeFcm = nativeTokens['fcm_token'] ?? '';
+        if (nativeApns.isNotEmpty) lastApnsToken = nativeApns;
+        if (nativeFcm.isNotEmpty) token = nativeFcm;
       }
       if (token == null || token.isEmpty) {
         lastError = 'Firma FCM tokenı alınamadı${tokenError == null ? '' : ': $tokenError'}';
