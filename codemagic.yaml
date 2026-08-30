@@ -1,6 +1,6 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V204
+    name: MleySoft IK iOS TestFlight V207
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -21,6 +21,7 @@ workflows:
           flutter create --platforms=ios --org com.mleysoft .
           python3 native_config/configure_ios.py
           xcode-project use-profiles
+          bash native_config/verify_ios_push_signing.sh
           test -f ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
           test -f ios/Runner/GoogleService-Info.plist
@@ -52,7 +53,9 @@ workflows:
       - name: Build IPA and verify final binary privacy
         script: |
           set -euo pipefail
-          flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
+          xcode-project use-profiles
+          bash native_config/verify_ios_push_signing.sh
+          flutter build ipa --release --export-options-plist /Users/builder/export_options.plist --dart-define=API_BASE_URL="$API_BASE_URL"
           IPA_FILE=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
           test -n "$IPA_FILE"
           rm -rf /tmp/mleysoft_ipa_verify && mkdir -p /tmp/mleysoft_ipa_verify
@@ -60,8 +63,8 @@ workflows:
           FINAL_PLIST=$(find /tmp/mleysoft_ipa_verify/Payload -maxdepth 2 -name Info.plist | head -1)
           test -f /tmp/mleysoft_ipa_verify/Payload/Runner.app/GoogleService-Info.plist
           /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" /tmp/mleysoft_ipa_verify/Payload/Runner.app/GoogleService-Info.plist | grep -q '^com.mleysoft.ik$'
-          codesign -d --entitlements :- /tmp/mleysoft_ipa_verify/Payload/Runner.app 2>/tmp/mleysoft_entitlements.plist || true
-          grep -q 'aps-environment' /tmp/mleysoft_entitlements.plist || { echo "ERROR: signed IPA has no aps-environment entitlement"; cat /tmp/mleysoft_entitlements.plist; exit 1; }
+          codesign -d --entitlements :- /tmp/mleysoft_ipa_verify/Payload/Runner.app > /tmp/mleysoft_entitlements.plist 2>&1 || true
+          grep -q '<key>aps-environment</key>' /tmp/mleysoft_entitlements.plist && grep -A1 '<key>aps-environment</key>' /tmp/mleysoft_entitlements.plist | grep -q 'production' || { echo "ERROR: signed IPA has no aps-environment entitlement"; cat /tmp/mleysoft_entitlements.plist; exit 1; }
           test -n "$FINAL_PLIST"
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$FINAL_PLIST"
           ! /usr/libexec/PlistBuddy -c "Print :NSLocationAlwaysAndWhenInUseUsageDescription" "$FINAL_PLIST" >/dev/null 2>&1

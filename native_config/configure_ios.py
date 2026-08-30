@@ -422,3 +422,44 @@ for required in [
     if required not in app_delegate_text:
         raise SystemExit(f"V201 ERROR: AppDelegate missing APNs forwarding code: {required}")
 print("V205 VERIFY OK: Firebase proxy disabled; native APNs -> Firebase forwarding active.")
+
+
+# V207: Force Push Notifications capability into the generated Xcode target.
+# Runner.entitlements alone is not enough if the generated target drops the capability metadata.
+pbx = ios / "Runner.xcodeproj" / "project.pbxproj"
+if not pbx.exists():
+    raise SystemExit("V207 ERROR: Runner.xcodeproj bulunamadi.")
+t = pbx.read_text(encoding="utf-8")
+
+# Ensure every Runner build configuration that has our bundle id also points at Runner.entitlements.
+needle = "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik;"
+replacement = needle + "\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;"
+for _ in range(10):
+    # Only replace occurrences not already followed by CODE_SIGN_ENTITLEMENTS.
+    pos = t.find(needle)
+    if pos < 0:
+        break
+    after = t[pos:pos+220]
+    if "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" not in after:
+        t = t[:pos] + replacement + t[pos+len(needle):]
+    # move past this occurrence by temporarily marking it
+    t = t[:pos] + t[pos:].replace(needle, "PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik; /* V207_SEEN */", 1)
+t = t.replace("PRODUCT_BUNDLE_IDENTIFIER = com.mleysoft.ik; /* V207_SEEN */", needle)
+
+# Add Xcode Push Notifications SystemCapability to Runner target attributes when absent.
+if "com.apple.Push =" not in t:
+    marker = "CreatedOnToolsVersion ="
+    idx = t.find(marker)
+    if idx < 0:
+        raise SystemExit("V207 ERROR: Xcode TargetAttributes bolumu bulunamadi.")
+    line_end = t.find(";", idx) + 1
+    capability = "\n\t\t\t\t\t\tSystemCapabilities = {\n\t\t\t\t\t\t\tcom.apple.Push = {\n\t\t\t\t\t\t\t\tenabled = 1;\n\t\t\t\t\t\t\t};\n\t\t\t\t\t\t};"
+    t = t[:line_end] + capability + t[line_end:]
+
+pbx.write_text(t, encoding="utf-8")
+verify = pbx.read_text(encoding="utf-8")
+if "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;" not in verify:
+    raise SystemExit("V207 ERROR: CODE_SIGN_ENTITLEMENTS Runner targetina baglanamadi.")
+if "com.apple.Push =" not in verify:
+    raise SystemExit("V207 ERROR: Push Notifications SystemCapability eklenemedi.")
+print("V207 VERIFY OK: Runner target has Push capability + Runner.entitlements binding.")
