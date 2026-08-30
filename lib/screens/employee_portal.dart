@@ -64,7 +64,16 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
     if (!mounted || noticeDialogOpen) return;
     final id = await NotificationService.instance.consumeAnnouncementTapId();
     if (!mounted || id == null || id <= 0) return;
-    await _openAnnouncement(id);
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmployeeNotificationsScreen(
+          state: widget.state,
+          initialNotificationId: id,
+        ),
+      ),
+    );
+    await _refreshNotices();
   }
 
   Future<void> _openAnnouncement(int id) async {

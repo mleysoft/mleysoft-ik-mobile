@@ -134,8 +134,8 @@ class PushService {
     final notificationId = int.tryParse('${message.data['notification_id'] ?? 0}') ?? 0;
     if (notificationId <= 0) return;
     if (type == 'company_notification') {
-      // Firma bildirimi tıklaması uygulamayı açar; Shell liste/sayaç bilgisini API'den yeniler.
-      try { await NotificationService.instance.storage.write(key: 'pending_company_notification_id', value: '$notificationId'); } catch (_) {}
+      // V211: Firma bildirimi tıklanınca Bildirimler sayfası + ilgili detay açılır.
+      await NotificationService.instance.handleCompanyNotificationTap(notificationId);
       return;
     }
 

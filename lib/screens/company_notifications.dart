@@ -6,8 +6,9 @@ import '../core/notification_service.dart';
 import '../core/theme.dart';
 
 class CompanyNotificationsScreen extends StatefulWidget {
-  const CompanyNotificationsScreen({super.key, required this.state});
+  const CompanyNotificationsScreen({super.key, required this.state, this.initialNotificationId});
   final AppState state;
+  final int? initialNotificationId;
   @override
   State<CompanyNotificationsScreen> createState() => _CompanyNotificationsScreenState();
 }
@@ -18,15 +19,24 @@ class _CompanyNotificationsScreenState extends State<CompanyNotificationsScreen>
   int unread = 0;
 
   @override
-  void initState() { super.initState(); load(); }
+  void initState() { super.initState(); load(openInitial: true); }
 
-  Future<void> load() async {
+  bool _initialOpened = false;
+
+  Future<void> load({bool openInitial = false}) async {
     try {
       final r = await widget.state.api.request('manager/company-notifications');
       if (!mounted) return;
       final count = int.tryParse('${r['unread_count'] ?? 0}') ?? 0;
       setState(() { rows = (r['notifications'] ?? []) as List; unread = count; loading = false; });
       NotificationService.instance.unreadCompanyNotificationCount.value = count;
+      final initialId = widget.initialNotificationId ?? 0;
+      if (openInitial && !_initialOpened && initialId > 0) {
+        _initialOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) open({'id': initialId});
+        });
+      }
     } catch (_) { if (mounted) setState(() => loading = false); }
   }
 

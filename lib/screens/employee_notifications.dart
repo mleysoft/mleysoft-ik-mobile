@@ -6,8 +6,9 @@ import '../core/theme.dart';
 import '../widgets/common.dart';
 
 class EmployeeNotificationsScreen extends StatefulWidget {
-  const EmployeeNotificationsScreen({super.key, required this.state});
+  const EmployeeNotificationsScreen({super.key, required this.state, this.initialNotificationId});
   final AppState state;
+  final int? initialNotificationId;
 
   @override
   State<EmployeeNotificationsScreen> createState() => _EmployeeNotificationsScreenState();
@@ -21,10 +22,12 @@ class _EmployeeNotificationsScreenState extends State<EmployeeNotificationsScree
   @override
   void initState() {
     super.initState();
-    load();
+    load(openInitial: true);
   }
 
-  Future<void> load() async {
+  bool _initialOpened = false;
+
+  Future<void> load({bool openInitial = false}) async {
     try {
       final r = await widget.state.api.request('employee/notifications', query: {'limit': 100});
       if (!mounted) return;
@@ -34,6 +37,13 @@ class _EmployeeNotificationsScreenState extends State<EmployeeNotificationsScree
         busy = false;
       });
       NotificationService.instance.unreadAnnouncementCount.value = unread;
+      final initialId = widget.initialNotificationId ?? 0;
+      if (openInitial && !_initialOpened && initialId > 0) {
+        _initialOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) openNotice({'id': initialId});
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => busy = false);

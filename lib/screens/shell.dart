@@ -31,8 +31,39 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     _rebuildPages();
     if (!widget.state.isSuper) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCompanyUnread());
+      NotificationService.instance.companyNotificationTapId.addListener(_companyNotificationTapListener);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _refreshCompanyUnread();
+        await _openPendingCompanyNotification();
+      });
     }
+  }
+
+
+  void _companyNotificationTapListener() {
+    _openPendingCompanyNotification();
+  }
+
+  Future<void> _openPendingCompanyNotification() async {
+    if (!mounted || widget.state.isSuper) return;
+    final id = await NotificationService.instance.consumeCompanyNotificationTapId();
+    if (!mounted || id == null || id <= 0) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CompanyNotificationsScreen(
+          state: widget.state,
+          initialNotificationId: id,
+        ),
+      ),
+    );
+    await _refreshCompanyUnread();
+  }
+
+  @override
+  void dispose() {
+    NotificationService.instance.companyNotificationTapId.removeListener(_companyNotificationTapListener);
+    super.dispose();
   }
 
   Future<void> _refreshCompanyUnread() async {

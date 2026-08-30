@@ -31,6 +31,8 @@ class NotificationService {
   final FlutterSecureStorage storage = const FlutterSecureStorage();
   final ValueNotifier<String?> birthdayTapMessage = ValueNotifier<String?>(null);
   final ValueNotifier<int?> announcementTapId = ValueNotifier<int?>(null);
+  // V211: Firma push bildirimi tıklamasını Shell'e taşır.
+  final ValueNotifier<int?> companyNotificationTapId = ValueNotifier<int?>(null);
   final ValueNotifier<int> unreadAnnouncementCount = ValueNotifier<int>(0);
   // V185: Firma yöneticisi zil rozeti için ayrı okunmamış sayaç.
   final ValueNotifier<int> unreadCompanyNotificationCount = ValueNotifier<int>(0);
@@ -105,6 +107,20 @@ class NotificationService {
     if (id <= 0) return;
     await storage.write(key: 'pending_announcement_id', value: '$id');
     announcementTapId.value = id;
+  }
+
+  Future<void> handleCompanyNotificationTap(int id) async {
+    if (id <= 0) return;
+    await storage.write(key: 'pending_company_notification_id', value: '$id');
+    companyNotificationTapId.value = id;
+  }
+
+  Future<int?> consumeCompanyNotificationTapId() async {
+    final direct = companyNotificationTapId.value;
+    companyNotificationTapId.value = null;
+    final stored = int.tryParse(await storage.read(key: 'pending_company_notification_id') ?? '');
+    await storage.delete(key: 'pending_company_notification_id');
+    return direct ?? stored;
   }
 
   Future<int?> consumeAnnouncementTapId() async {
