@@ -1,11 +1,14 @@
 workflows:
   ios-testflight:
-    name: MleySoft IK iOS TestFlight V203
+    name: MleySoft IK iOS TestFlight V204
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
       flutter: stable
       xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.mleysoft.ik
       groups:
         - app_store_credentials
       vars:
@@ -17,6 +20,7 @@ workflows:
           rm -rf ios
           flutter create --platforms=ios --org com.mleysoft .
           python3 native_config/configure_ios.py
+          xcode-project use-profiles
           test -f ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
           grep -q "com.mleysoft.ik" ios/Runner.xcodeproj/project.pbxproj
           test -f ios/Runner/GoogleService-Info.plist
@@ -47,6 +51,7 @@ workflows:
           ! grep -q 'requestAlwaysAuthorization' packages/mleysoft_native_bridge/ios/Classes/MleySoftNativeBridgePlugin.swift
       - name: Build IPA and verify final binary privacy
         script: |
+          set -euo pipefail
           flutter build ipa --release --dart-define=API_BASE_URL="$API_BASE_URL"
           IPA_FILE=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
           test -n "$IPA_FILE"

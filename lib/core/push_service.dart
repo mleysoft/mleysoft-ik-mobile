@@ -161,9 +161,10 @@ class PushService {
     if (!Platform.isIOS) return '';
     await NativeNotificationPermissionService.ensureRemoteRegistration();
 
-    // V204: iOS APNs kaydı asenkron gelebilir. Mevcut sunucu/token akışını
-    // değiştirmeden APNs tokenını 15 saniyeye kadar bekle.
-    for (var i = 0; i < 30; i++) {
+    // V168: Tek bir push kayıt denemesi uygulamayı uzun süre tutmaz.
+    // APNs henüz hazır değilse en fazla yaklaşık 3 saniye beklenir ve işlem
+    // arka plandaki retry mekanizmasına bırakılır.
+    for (var i = 0; i < 6; i++) {
       try {
         final token = await FirebaseMessaging.instance.getAPNSToken();
         if (token != null && token.isNotEmpty) {
@@ -181,8 +182,8 @@ class PushService {
     try {
       final nativeRegistration = await NativeNotificationPermissionService.getAPNsRegistrationStatus();
       final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
-      final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
-      lastError = 'APNs cihaz tokenı alınamadı. (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+      final nativeStage = nativeRegistration['status'] ?? 'unknown';
+      lastError = 'APNs cihaz tokenı alınamadı. (native aşama: $nativeStage, iOS kayıt bayrağı: $sysRegistered)';
     } catch (_) {
       lastError = 'APNs cihaz tokenı alınamadı.';
     }
@@ -288,8 +289,9 @@ class PushService {
           //   olabilir; farklı bir Wi-Fi/hücresel ağda ve VPN kapalıyken tekrar
           //   denenmeli.
           final sysRegistered = nativeRegistration['system_registered'] == '1' ? 'evet' : 'hayır';
-          final netReachable = nativeRegistration['apns_network_reachable'] == '1' ? 'evet' : 'hayır';
-          final context = ' (iOS kayıt bayrağı: $sysRegistered, Apple push sunucusuna ağ erişimi: $netReachable)';
+          final nativeStage = nativeRegistration['status'] ?? 'unknown';
+          final fcmError = nativeRegistration['fcm_error'] ?? '';
+          final context = ' (native aşama: $nativeStage, iOS kayıt bayrağı: $sysRegistered${fcmError.isEmpty ? '' : ', Firebase: $fcmError'})';
           final message = detail.isEmpty
               ? 'APNs token 15 saniye içinde alınamadı; native callback hata döndürmedi.$context'
               : '$detail$context';

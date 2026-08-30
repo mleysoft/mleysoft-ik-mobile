@@ -1,5 +1,5 @@
 name: mleysoft_ik
-version: 1.8.2+185
+version: 1.8.3+186
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:

@@ -62,7 +62,8 @@ class NativeNotificationPermissionService {
         // V203: iOS'un kendi kayıt bayrağı ve Apple push sunucusuna temel ağ
         // erişimi. Değerler '1'/'0' string olarak gelir.
         'system_registered': '${value?['system_registered'] ?? ''}',
-        'apns_network_reachable': '${value?['apns_network_reachable'] ?? ''}',
+        'fcm_token': '${value?['fcm_token'] ?? ''}',
+        'fcm_error': '${value?['fcm_error'] ?? ''}',
       };
     } catch (e) {
       return {'status': 'channel_error', 'error': '$e', 'apns_token': ''};

@@ -216,16 +216,52 @@ if not app_delegate.exists():
     raise SystemExit("V201 ERROR: Flutter-generated AppDelegate.swift is missing.")
 app_delegate.write_text(r'''import Flutter
 import UIKit
+import UserNotifications
 import FirebaseMessaging
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, MessagingDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+
+    // V205: Firebase swizzling kapalı olduğundan APNs kaydını native olarak
+    // deterministik biçimde başlat ve FCM delegate'ini doğrudan bağla.
+    Messaging.messaging().delegate = self
+    Messaging.messaging().isAutoInitEnabled = true
+    UserDefaults.standard.set("launch_started", forKey: "mleysoft_apns_status")
+    UserDefaults.standard.set("", forKey: "mleysoft_apns_error")
+
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      if settings.authorizationStatus == .authorized ||
+         settings.authorizationStatus == .provisional ||
+         settings.authorizationStatus == .ephemeral {
+        DispatchQueue.main.async {
+          UserDefaults.standard.set("register_requested", forKey: "mleysoft_apns_status")
+          application.registerForRemoteNotifications()
+        }
+      }
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    // iOS 26 / UIScene geçişlerinde ilk çağrı callback üretmezse uygulama aktif
+    // olduğunda native APNs registration'ı yeniden tetikle.
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      if settings.authorizationStatus == .authorized ||
+         settings.authorizationStatus == .provisional ||
+         settings.authorizationStatus == .ephemeral {
+        DispatchQueue.main.async {
+          UserDefaults.standard.set("register_requested_active", forKey: "mleysoft_apns_status")
+          application.registerForRemoteNotifications()
+        }
+      }
+    }
   }
 
   override func application(
@@ -236,7 +272,19 @@ import FirebaseMessaging
     UserDefaults.standard.set("success", forKey: "mleysoft_apns_status")
     UserDefaults.standard.set("", forKey: "mleysoft_apns_error")
     UserDefaults.standard.set(tokenHex, forKey: "mleysoft_apns_token")
+
+    // FirebaseAppDelegateProxyEnabled=false: Apple tokenını Firebase'e elle aktar.
     Messaging.messaging().apnsToken = deviceToken
+    Messaging.messaging().token { token, error in
+      if let token = token, !token.isEmpty {
+        UserDefaults.standard.set(token, forKey: "mleysoft_fcm_token")
+      }
+      if let error = error {
+        UserDefaults.standard.set(error.localizedDescription, forKey: "mleysoft_fcm_error")
+      } else {
+        UserDefaults.standard.set("", forKey: "mleysoft_fcm_error")
+      }
+    }
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
@@ -248,6 +296,10 @@ import FirebaseMessaging
     UserDefaults.standard.set(error.localizedDescription, forKey: "mleysoft_apns_error")
     UserDefaults.standard.set("", forKey: "mleysoft_apns_token")
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    UserDefaults.standard.set(fcmToken ?? "", forKey: "mleysoft_fcm_token")
   }
 }
 ''', encoding="utf-8")
@@ -266,7 +318,7 @@ for required in [
         raise SystemExit(f"V201 ERROR: native plugin missing required code: {required}")
 if "requestAlwaysAuthorization" in plugin_text:
     raise SystemExit("V201 ERROR: Always Location API must not exist in native plugin.")
-print("V201 VERIFY OK: APNs callback explicitly forwarded to Firebase Messaging.")
+print("V205 VERIFY OK: Native APNs registration + explicit Firebase forwarding active.")
 
 # V147: İK ERP belge yükleme gizlilik doğrulaması.
 # file_picker iOS'ta sistem belge seçiciyi kullanır; geniş dosya sistemi izni istenmez.
@@ -369,4 +421,4 @@ for required in [
 ]:
     if required not in app_delegate_text:
         raise SystemExit(f"V201 ERROR: AppDelegate missing APNs forwarding code: {required}")
-print("V201 VERIFY OK: Firebase proxy disabled; explicit APNs -> Firebase forwarding active.")
+print("V205 VERIFY OK: Firebase proxy disabled; native APNs -> Firebase forwarding active.")
