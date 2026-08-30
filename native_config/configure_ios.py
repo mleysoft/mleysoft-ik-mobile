@@ -465,3 +465,25 @@ if ent_count < bundle_count:
 if "com.apple.Push =" not in verify:
     raise SystemExit("V208 ERROR: Push Notifications SystemCapability eklenemedi.")
 print(f"V208 VERIFY OK: ALL Runner configs use Runner.entitlements (bundle={bundle_count}, entitlement={ent_count}).")
+
+
+# V209: Xcode xcconfig-level entitlement binding. This is intentionally redundant with
+# project.pbxproj so Flutter/Xcode regeneration cannot silently drop APNs entitlement.
+for xcname in ["Debug.xcconfig", "Release.xcconfig"]:
+    xcp = ios / "Flutter" / xcname
+    if not xcp.exists():
+        raise SystemExit(f"V209 ERROR: {xcname} bulunamadi")
+    xs = xcp.read_text(encoding="utf-8")
+    xs = "\n".join(line for line in xs.splitlines() if not line.strip().startswith("CODE_SIGN_ENTITLEMENTS")) + "\n"
+    xs += "CODE_SIGN_ENTITLEMENTS=Runner/Runner.entitlements\n"
+    xcp.write_text(xs, encoding="utf-8")
+
+# Also ensure the target entitlements file is exactly production APNs.
+with entitlements.open("wb") as f:
+    plistlib.dump({"aps-environment": "production"}, f, sort_keys=False)
+
+for xcname in ["Debug.xcconfig", "Release.xcconfig"]:
+    xs = (ios / "Flutter" / xcname).read_text(encoding="utf-8")
+    if "CODE_SIGN_ENTITLEMENTS=Runner/Runner.entitlements" not in xs:
+        raise SystemExit(f"V209 ERROR: {xcname} entitlement binding yok")
+print("V209 VERIFY OK: Debug/Release xcconfig explicitly bind Runner.entitlements.")
