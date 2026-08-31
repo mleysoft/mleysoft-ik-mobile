@@ -56,7 +56,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
   }
 
   Future<void> _refreshNotices() async {
-    final count = await NotificationService.instance.pollEmployeeAnnouncements(showSystemNotifications: true);
+    final count = await NotificationService.instance.pollEmployeeAnnouncements(showSystemNotifications: false);
     if (mounted && count != unreadNotices) setState(() => unreadNotices = count);
   }
 

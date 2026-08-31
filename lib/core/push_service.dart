@@ -93,16 +93,9 @@ class PushService {
           if (type == 'employee_notification' && notificationId > 0) {
             unawaited(NotificationService.instance.markRemoteEmployeeNotificationDelivered(notificationId));
           }
-          final n = m.notification;
-          if (n != null) {
-            unawaited(NotificationService.instance.showRemote(
-              n.title ?? 'MleySoft İK',
-              n.body ?? '',
-              payload: m.data['notification_id'] == null
-                  ? null
-                  : 'notice|${m.data['notification_id']}',
-            ));
-          }
+          // V194: FCM bildirimi ikinci kez flutter_local_notifications ile
+          // üretilmez. Tek görünür bildirim Firebase/APNs/Android sistem
+          // bildirimi olur; uygulama yalnız sayaç/teslim bilgisini günceller.
         });
 
         // iOS'ta sistem bildirimi arka planda/sonlandırılmışken kullanıcı

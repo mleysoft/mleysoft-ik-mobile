@@ -296,7 +296,7 @@ class NotificationService {
     final employeeMode = mode == 'employee';
     final now = DateTime.now();
 
-    if (employeeMode) await pollEmployeeAnnouncements(showSystemNotifications: true);
+    if (employeeMode) await pollEmployeeAnnouncements(showSystemNotifications: false);
     if (employeeMode && now.hour < 8) return true;
     if (!employeeMode && now.hour < 14) return true;
 
@@ -324,43 +324,9 @@ class NotificationService {
     final decoded = jsonDecode(response.body);
     if (decoded is! Map || decoded['ok'] != true) return true;
 
-    if (employeeMode) {
-      if (decoded['is_birthday'] == true) {
-        final title = '${decoded['title'] ?? 'Doğum Günün Kutlu Olsun 🎉'}';
-        final body = '${decoded['body'] ?? ''}';
-        final full = '${decoded['full_message'] ?? body}';
-        await plugin.show(5866, title, body, _details, payload: 'birthday|$full');
-      }
-      await storage.write(key: lastKey, value: dayKey);
-      return true;
-    }
-
-    final missing = int.tryParse('${decoded['missing_attendance'] ?? 0}') ?? 0;
-    final birthdays = int.tryParse('${decoded['birthday_count'] ?? 0}') ?? 0;
-    final birthdayNames = (decoded['birthday_names'] ?? []) as List;
-    final shiftExpiring = int.tryParse('${decoded['shift_expiring_count'] ?? 0}') ?? 0;
-    final shiftRows = (decoded['shift_expiring'] ?? []) as List;
-
-    if (missing > 0) {
-      await plugin.show(5801, 'Puantaj Hatırlatması', 'Bugün $missing personelin puantaj işlemi henüz yapılmadı.', _details);
-    }
-    if (birthdays > 0) {
-      final names = birthdayNames.take(2).join(', ');
-      final body = birthdays == 1
-          ? 'Bugün $names için doğum günü.'
-          : 'Bugün $birthdays personelin doğum günü${names.isEmpty ? '.' : ': $names${birthdays > 2 ? '…' : ''}'}';
-      await plugin.show(5802, 'Doğum Günü', body, _details);
-    }
-    if (shiftExpiring > 0) {
-      final first = shiftRows.isNotEmpty ? '${shiftRows.first['person_name']} · ${shiftRows.first['shift_name']}' : '';
-      await plugin.show(
-        5803,
-        'Vardiya Süresi Yaklaşıyor',
-        '$shiftExpiring personelin vardiya bitiş tarihi yaklaşıyor${first.isEmpty ? '.' : ': $first${shiftExpiring > 1 ? '…' : ''}'}',
-        _details,
-      );
-    }
-
+    // V194: Otomatik/doğum günü/puantaj/vardiya bildirimleri artık cihazda
+    // yerel olarak üretilmez. Görünür bildirimlerin tek kaynağı sunucu cronunun
+    // FCM gönderimidir. Bu görev yalnız sessiz veri/sayaç senkronizasyonu yapar.
     await storage.write(key: lastKey, value: dayKey);
     return true;
   }
