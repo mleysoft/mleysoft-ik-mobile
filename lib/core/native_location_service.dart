@@ -14,7 +14,7 @@ class NativeLocationService {
   static Future<NativePosition> currentPosition() async {
     try {
       final raw = await _channel.invokeMethod<Map<dynamic, dynamic>>('getCurrentLocation').timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 40),
         onTimeout: () => throw Exception('Konum bilgisi zamanında alınamadı. Konum servisini kontrol edip QR kodunu tekrar okutun.'),
       );
       if (raw == null) throw Exception('Konum bilgisi alınamadı.');

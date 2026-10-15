@@ -188,43 +188,59 @@ class MainActivity : FlutterFragmentActivity() {
 
     private fun obtainLocation(result: MethodChannel.Result) {
         val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val provider = when {
-            runCatching { manager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false) -> LocationManager.GPS_PROVIDER
-            runCatching { manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false) -> LocationManager.NETWORK_PROVIDER
-            else -> null
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter { name ->
+            (name != LocationManager.GPS_PROVIDER || fine) && (fine || coarse) &&
+                runCatching { manager.isProviderEnabled(name) }.getOrDefault(false)
         }
-        if (provider == null) {
-            result.error("LOCATION_SERVICE_DISABLED", "Konum servisi kapalı.", null)
+        if (providers.isEmpty()) {
+            result.error("LOCATION_SERVICE_DISABLED", "GPS veya ağ konumu kapalı. Konum ayarlarınızı kontrol edin.", null)
             return
         }
         try {
-            val last = manager.getLastKnownLocation(provider)
-            if (last != null && System.currentTimeMillis() - last.time < 120000) {
-                returnLocation(result, last)
-                return
-            }
+            // Kapalı alanda sadece GPS'i beklemek yerine ağ+GPS sonuçlarını birlikte al.
+            val cached = providers.mapNotNull { name -> runCatching { manager.getLastKnownLocation(name) }.getOrNull() }
+                .filter { System.currentTimeMillis() - it.time in 0L..120000L && it.accuracy <= 75f }
+                .minByOrNull { it.accuracy }
+            if (cached != null) { returnLocation(result, cached); return }
+
             var completed = false
-            val listener = object : LocationListener {
-                override fun onLocationChanged(location: Location) {
-                    if (completed) return
-                    completed = true
-                    manager.removeUpdates(this)
-                    returnLocation(result, location)
-                }
-                override fun onProviderEnabled(provider: String) {}
-                override fun onProviderDisabled(provider: String) {}
-                @Deprecated("Deprecated in Android") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            }
-            manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
-            locationHandler.postDelayed({
+            var best: Location? = null
+            val listeners = mutableListOf<LocationListener>()
+            val timeout = Runnable {
                 if (!completed) {
                     completed = true
-                    runCatching { manager.removeUpdates(listener) }
-                    val fallback = runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
-                    if (fallback != null) returnLocation(result, fallback)
-                    else result.error("LOCATION_TIMEOUT", "Konum bilgisi zamanında alınamadı. Konum servisini kontrol edip tekrar deneyin.", null)
+                    listeners.forEach { listener -> runCatching { manager.removeUpdates(listener) } }
+                    val candidate = best
+                    if (candidate != null) returnLocation(result, candidate)
+                    else result.error("LOCATION_TIMEOUT", "Konum henüz belirlenemedi. Konum hizmetlerini açıp tekrar deneyin.", null)
                 }
-            }, 12000)
+            }
+            fun complete(location: Location) {
+                if (completed) return
+                completed = true
+                locationHandler.removeCallbacks(timeout)
+                listeners.forEach { listener -> runCatching { manager.removeUpdates(listener) } }
+                returnLocation(result, location)
+            }
+            for (name in providers) {
+                val listener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
+                        if (completed) return
+                        if (best == null || location.accuracy < best!!.accuracy) best = location
+                        if (location.accuracy in 0f..75f) complete(location)
+                    }
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                    @Deprecated("Deprecated in Android") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                }
+                listeners.add(listener)
+            }
+            providers.forEachIndexed { i, name ->
+                runCatching { manager.requestLocationUpdates(name, 0L, 0f, listeners[i], Looper.getMainLooper()) }
+            }
+            locationHandler.postDelayed(timeout, 30000)
         } catch (_: SecurityException) {
             result.error("LOCATION_PERMISSION_DENIED", "Konum izni gerekli.", null)
         } catch (e: Exception) {

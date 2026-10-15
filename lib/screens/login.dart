@@ -21,7 +21,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
   final pass = TextEditingController();
   bool busy = false;
   bool hide = true;
-  final employeeCode = TextEditingController();
+  final employeePhone = TextEditingController();
   bool employeeBusy=false;
   late final TabController tabs;
 
@@ -29,7 +29,7 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
   void initState(){super.initState();tabs=TabController(length:2,vsync:this);}
   @override
   void dispose() {
-    tabs.dispose();employeeCode.dispose();
+    tabs.dispose();employeePhone.dispose();
     email.dispose();
     pass.dispose();
     super.dispose();
@@ -252,12 +252,36 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
     );
   }
 
-  Future<void> employeeGo() async {
-    if(employeeBusy || employeeCode.text.trim().isEmpty) return;
+  Future<void> employeeGo({int? companyId}) async {
+    if(employeeBusy || employeePhone.text.trim().isEmpty) return;
     setState(()=>employeeBusy=true);
-    try{await widget.state.employeeLogin(employeeCode.text.trim());}
-    catch(e){await handleLoginError(e);}
-    finally{if(mounted)setState(()=>employeeBusy=false);}
+    try {
+      await widget.state.employeeLogin(employeePhone.text.trim(), companyId: companyId);
+    } on ApiException catch(e) {
+      if(e.code == 'COMPANY_SELECTION_REQUIRED' && mounted) {
+        final raw = e.details['companies'];
+        final companies = raw is List ? raw.whereType<Map>().toList() : <Map>[];
+        if(companies.isEmpty) { await handleLoginError(e); }
+        else {
+          final chosen = await showDialog<int>(context: context,builder:(context)=>AlertDialog(
+            title:const Text('Firmanızı Seçin'),
+            content:ConstrainedBox(constraints:const BoxConstraints(maxWidth:420),child:SingleChildScrollView(
+              child:Column(mainAxisSize:MainAxisSize.min,children:companies.map((company)=>
+                ListTile(leading:const Icon(Icons.business_outlined),
+                  title:Text('${company['name'] ?? 'Firma'}'),
+                  onTap:()=>Navigator.pop(context,int.tryParse('${company['id']}')),
+                )).toList(),
+              ))),
+            actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Vazgeç'))],
+          ));
+          if(chosen != null) {
+            try { await widget.state.employeeLogin(employeePhone.text.trim(),companyId:chosen); }
+            catch(err){ await handleLoginError(err); }
+          }
+        }
+      } else { await handleLoginError(e); }
+    } catch(e) { await handleLoginError(e); }
+    finally { if(mounted)setState(()=>employeeBusy=false); }
   }
 
   @override
@@ -293,13 +317,13 @@ class _LoginState extends State<LoginScreen> with SingleTickerProviderStateMixin
                           SizedBox(width:double.infinity,child:FilledButton(onPressed:busy?null:go,child:busy?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):const Text('Giriş Yap'))),
                         ]),
                         Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-                          Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF6FBE8),borderRadius:BorderRadius.circular(14)),child:const Text('Size özel mobil uygulama personel kodunu yalnızca kendi telefonunuzda kullanın. İlk girişte telefon bu personele bağlanır.',style:TextStyle(fontSize:12))),
+                          Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF6FBE8),borderRadius:BorderRadius.circular(14)),child:const Text('Personel hesabınız için firmanızda kayıtlı cep telefonu numaranızı girin. İlk girişte telefonunuz hesabınıza bağlanır.',style:TextStyle(fontSize:12))),
                           const SizedBox(height:14),
-                          TextField(controller:employeeCode,textCapitalization:TextCapitalization.characters,onSubmitted:(_)=>employeeGo(),decoration:const InputDecoration(labelText:'Mobil Personel Kodu',prefixIcon:Icon(Icons.badge_outlined),hintText:'Örn. IK-A1B2C3D4E5')),
+                          TextField(controller:employeePhone,keyboardType:TextInputType.phone,textInputAction:TextInputAction.done,onSubmitted:(_)=>employeeGo(),decoration:const InputDecoration(labelText:'Cep Telefonu',prefixIcon:Icon(Icons.phone_iphone_outlined),hintText:'05XX XXX XX XX')),
                           const SizedBox(height:14),
                           FilledButton.icon(onPressed:employeeBusy?null:employeeGo,icon:const Icon(Icons.login),label:Text(employeeBusy?'Cihaz Doğrulanıyor...':'Personel Girişi')),
                           const SizedBox(height:10),
-                          const Text('Bu mobil personel kodu başka bir telefona bağlıysa giriş engellenir. Telefon değişiminde firma yöneticiniz cihaz bağlantısını kaldırmalıdır.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
+                          const Text('Telefon numarası firma kaydınızdaki numarayla aynı olmalıdır. Başka telefondan giriş için yöneticiniz cihaz bağlantısını kaldırmalıdır.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:MTheme.muted)),
                         ])
                       ],
                     ),

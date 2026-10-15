@@ -137,7 +137,7 @@ public final class MleySoftNativeBridgePlugin: NSObject, FlutterPlugin, CLLocati
       ))
     }
     locationTimeout = work
-    DispatchQueue.main.asyncAfter(deadline: .now() + 12, execute: work)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: work)
 
     switch locationManager.authorizationStatus {
     case .notDetermined:

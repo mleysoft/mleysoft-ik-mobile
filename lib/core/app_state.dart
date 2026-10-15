@@ -335,10 +335,11 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> employeeLogin(String employeeCode) async {
+  Future<void> employeeLogin(String phone, {int? companyId}) async {
     final device = await DeviceIdentity.collect();
     final r = await api.request('employee-auth/login', method: 'POST', data: {
-      'employee_code': employeeCode.trim(),
+      'phone': phone.trim(),
+      if(companyId != null) 'company_id': companyId,
       ...device,
     });
     await api.saveToken(r['token']);

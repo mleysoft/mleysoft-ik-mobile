@@ -16,6 +16,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List rows = [];
   List allRows = [];
   List missing = [];
+  List pendingCorrections = [];
   List businessUnits = [];
   int businessUnitId = 0;
   Map statuses = {};
@@ -26,7 +27,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String get ds => DateFormat('yyyy-MM-dd').format(day);
 
   @override
-  void initState() { super.initState(); loadDefinitions(); load(); checkMissing(); }
+  void initState() { super.initState(); loadDefinitions(); load(); checkMissing(); loadCorrections(); }
   @override
   void dispose() { search.dispose(); super.dispose(); }
 
@@ -78,6 +79,64 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final r = await widget.state.api.request('attendance/missing', query: {'from': DateFormat('yyyy-MM-01').format(now), 'to': DateFormat('yyyy-MM-dd').format(yesterday), 'business_unit_id': businessUnitId});
       if (mounted) setState(() => missing = (r['missing'] ?? []) as List);
     } catch (_) {}
+  }
+
+  Future<void> loadCorrections() async {
+    try {
+      final r = await widget.state.api.request('attendance/corrections');
+      if (mounted) setState(() => pendingCorrections = (r['requests'] ?? []) as List);
+    } catch (_) { /* Payroll and attendance remain usable if queue is unavailable. */ }
+  }
+
+  Future<void> reviewCorrection(Map<String, dynamic> request) async {
+    final isMissingIn = '${request['request_type']}' == 'missing_in';
+    String? selectedTime;
+    String note = '';
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(builder: (c, refresh) => AlertDialog(
+        title: Text(isMissingIn ? 'Eksik Giriş Onayı' : 'Eksik Çıkış Onayı'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${request['employee_name']} · ${request['work_date']}',
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('Vardiya: ${request['start_time'] ?? '-'} / ${request['end_time'] ?? '-'}'),
+          Text(isMissingIn ? 'QR ile doğrulanan çıkış: ${request['scanned_at'] ?? '-'}' : 'Personel çıkışı okutmadı.'),
+          const SizedBox(height: 16),
+          const Text('Onaylanacak gerçek saat (yönetici teyidi gerekir)'),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final value = await showTimePicker(context: c, initialTime: TimeOfDay.now(),
+                helpText: isMissingIn ? 'GERÇEK GİRİŞ SAATİ' : 'GERÇEK ÇIKIŞ SAATİ',
+                builder: (context, child) => MediaQuery(data: MediaQuery.of(context)
+                    .copyWith(alwaysUse24HourFormat: true), child: child!));
+              if (value != null) refresh(() => selectedTime =
+                  '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}');
+            }, icon: const Icon(Icons.schedule),
+            label: Text(selectedTime ?? 'Saat Seç')),
+          const SizedBox(height: 8),
+          TextFormField(maxLines: 2, onChanged: (v) => note = v,
+            decoration: const InputDecoration(labelText: 'Yönetici notu')),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, null), child: const Text('Vazgeç')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Reddet')),
+          FilledButton(onPressed: selectedTime == null ? null : () => Navigator.pop(c, true),
+            child: const Text('Onayla')),
+        ],
+      )),
+    );
+    if (approved == null) return;
+    try {
+      final result = await widget.state.api.request('attendance/corrections', method: 'POST', data: {
+        'request_id': request['id'], 'decision': approved ? 'approve' : 'reject',
+        'time': approved ? selectedTime : '', 'note': note,
+      });
+      if (!mounted) return;
+      snack(context, '${result['message']}');
+      await loadCorrections();await load();
+    } catch (e) { if (mounted) snack(context, '$e', error: true); }
   }
 
   Future<void> setStatus(dynamic employee, String value) async {
@@ -138,7 +197,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Yalnızca seçili tarihte puantajı yapılmamış personeller etkilenecek.', style: TextStyle(fontSize: 11, color: MTheme.muted)),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(items: statuses.entries.map<DropdownMenuItem<String>>((x) => DropdownMenuItem(value: '${x.key}', child: Text('${x.value}'))).toList(), onChanged: (x) => value = x, decoration: const InputDecoration(labelText: 'Uygulanacak işlem')),
+        DropdownButtonFormField<String>(items: statuses.entries.where((x) => x.key != 'late_entry' && x.key != 'early_exit').map<DropdownMenuItem<String>>((x) => DropdownMenuItem(value: '${x.key}', child: Text('${x.value}'))).toList(), onChanged: (x) => value = x, decoration: const InputDecoration(labelText: 'Uygulanacak işlem')),
       ]),
       actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Vazgeç')), FilledButton(onPressed: () async { if (value == null) return; try { final r = await widget.state.api.request('attendance/bulk', method: 'POST', data: {'date': ds, 'status': value, 'business_unit_id': businessUnitId}); if (c.mounted) Navigator.pop(c); if (mounted) snack(context, '${r['updated']} personelin puantajı işlendi.'); await load(); } catch (e) { if (mounted) snack(context, '$e', error: true); } }, child: const Text('Uygula'))],
     ));
@@ -167,7 +226,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) => Column(children: [
     Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-      Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () async { final x = await pickDate(context, day); if (x != null) { setState(() => day = x); load(); } }, icon: const Icon(Icons.calendar_month), label: Text(DateFormat('dd.MM.yyyy').format(day)))), const SizedBox(width: 8), FilledButton.icon(onPressed: locked ? null : bulk, icon: const Icon(Icons.done_all), label: const Text('Toplu İşlem'))]),
+      Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () async { final x = await pickDate(context, day); if (x != null) { setState(() => day = x); load(); loadCorrections(); } }, icon: const Icon(Icons.calendar_month), label: Text(DateFormat('dd.MM.yyyy').format(day)))), const SizedBox(width: 8), FilledButton.icon(onPressed: locked ? null : bulk, icon: const Icon(Icons.done_all), label: const Text('Toplu İşlem'))]),
       const SizedBox(height: 8),
       DropdownButtonFormField<int>(
         value: businessUnitId,
@@ -182,6 +241,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       const SizedBox(height: 8),
       TextField(controller: search, onChanged: _filterRows, decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'Ad soyad veya personel no ara', suffixIcon: search.text.isEmpty ? null : IconButton(onPressed: () { search.clear(); _filterRows(''); }, icon: const Icon(Icons.close)))),
     ])),
+    if (pendingCorrections.isNotEmpty)
+      Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 10), child: Card(
+        color: const Color(0xFFFFF7E6),
+        child: Column(children: [
+          ListTile(leading: const Icon(Icons.fact_check_outlined, color: Color(0xFF9C6200)),
+            title: Text('Eksik QR Onayları (${pendingCorrections.length})',
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: const Text('Gerçek giriş/çıkış saati teyit edilmeden puantaj kesinleşmez.')),
+          ...pendingCorrections.take(5).map((r) => ListTile(
+            dense: true, title: Text('${r['employee_name']}'),
+            subtitle: Text('${r['work_date']} · ${r['request_type'] == 'missing_in' ? 'Giriş unutuldu' : 'Çıkış unutuldu'}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => reviewCorrection(Map<String, dynamic>.from(r)),
+          )),
+          if (pendingCorrections.length > 5) TextButton(
+            onPressed: () => showModalBottomSheet(context: context, isScrollControlled: true,
+              builder: (c) => SafeArea(child: ListView(shrinkWrap: true,
+                children: pendingCorrections.map((r) => ListTile(
+                  title: Text('${r['employee_name']}'),
+                  subtitle: Text('${r['work_date']} · ${r['request_type']}'),
+                  onTap: () { Navigator.pop(c); reviewCorrection(Map<String, dynamic>.from(r)); },
+                )).toList()))),
+            child: const Text('Tüm Talepler')),
+        ]),
+      )),
     if (locked) const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Card(child: ListTile(leading: Icon(Icons.lock_outline), title: Text('Bu ayın dönem maaşı oluşturuldu. Puantaj kilitli.')))),
     if (missing.isNotEmpty)
       Padding(
@@ -217,7 +301,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ),
       ),
-    Expanded(child: busy && rows.isEmpty ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: load, child: ListView.builder(itemCount: rows.length, itemBuilder: (_, i) {
+    Expanded(child: busy && rows.isEmpty ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: () async { await load(); await loadCorrections(); }, child: ListView.builder(itemCount: rows.length, itemBuilder: (_, i) {
       final e = rows[i];
       return Card(margin: const EdgeInsets.fromLTRB(12, 0, 12, 8), child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         InkWell(onTap: () => employeeDetail(e), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${e['first_name']} ${e['last_name']}', style: const TextStyle(fontWeight: FontWeight.w800)), Text('${e['employee_no']} · ${e['business_unit_name'] ?? '-'}', style: const TextStyle(fontSize: 11, color: MTheme.muted))])), const Icon(Icons.info_outline, size: 19)])),

@@ -164,7 +164,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
       final ticket = '${locked['ticket'] ?? ''}';
       if (ticket.isEmpty) throw Exception('QR işlem bileti oluşturulamadı. Lütfen tekrar okutun.');
       final payload = <String, dynamic>{'qr': code, 'qr_ticket': ticket};
-      if (security['geofence_enabled'] == true) {
+      if (locked['geofence_enabled'] == true || (locked['geofence_enabled'] == null && security['geofence_enabled'] == true)) {
         if (!mounted) return;
         final continueWithLocation = await showDialog<bool>(
           context: context,
@@ -189,11 +189,44 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
         if (pos.isMocked) throw Exception('Sahte/test konum algılandı. QR işlemi gerçek cihaz konumu ile yapılmalıdır.');
         payload.addAll({'latitude': pos.latitude, 'longitude': pos.longitude, 'accuracy': pos.accuracy, 'location_mocked': pos.isMocked});
       }
-      final r = await widget.state.api.request(
+      var r = await widget.state.api.request(
         'employee/scan',
         method: 'POST',
         data: payload,
       );
+      if (r['requires_confirmation'] == true) {
+        if (!mounted) return;
+        final kind = '${r['confirmation_type'] ?? ''}';
+        if (kind != 'early_exit' && kind != 'missing_in') {
+          throw Exception('Beklenmeyen QR onay türü. İşlem iptal edildi.');
+        }
+        final accepted = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (c) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            icon: Icon(kind == 'missing_in' ? Icons.fact_check_outlined : Icons.warning_amber_rounded,
+              size: 40, color: kind == 'missing_in' ? MTheme.ink : Colors.orange.shade700),
+            title: Text(kind == 'missing_in' ? 'Eksik Giriş Kaydı' : 'Erken Çıkış Onayı'),
+            content: Text('${r['message'] ?? ''}\n\nOnay vermezseniz puantaj değiştirilmez.',
+              style: const TextStyle(height: 1.5)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Onayla')),
+            ],
+          ),
+        ) ?? false;
+        if (!accepted) {
+          if (mounted) snack(context, 'QR işlemi iptal edildi. Puantaj değişmedi.');
+          return;
+        }
+        // The same server-side QR ticket remains reserved for the second request.
+        payload['confirm_action'] = kind;
+        r = await widget.state.api.request('employee/scan', method: 'POST', data: payload);
+        if (r['requires_confirmation'] == true) {
+          throw Exception('QR doğrulaması tamamlanamadı. Lütfen yeniden okutun.');
+        }
+      }
       if (mounted) {
         await _showScanSuccess('${r['message'] ?? 'İşlem başarıyla tamamlandı.'}');
         await load();
@@ -347,13 +380,15 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
                 SizedBox(
                   height: 60,
                   child: FilledButton.icon(
-                    onPressed: busy || scanState == 'completed' ? null : scan,
+                    onPressed: busy || (scanState == 'completed' || scanState == 'correction_pending') ? null : scan,
                     icon: const Icon(Icons.qr_code_scanner, size: 27),
                     label: Text(
                       busy
                           ? 'QR İşleniyor...'
                           : scanState == 'completed'
                               ? 'Bugünkü İşlemler Tamamlandı'
+                              : scanState == 'correction_pending'
+                                  ? 'Yönetici Onayı Bekleniyor'
                               : 'Kamerayı Aç ve QR Okut',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                     ),
@@ -362,9 +397,11 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
                 const SizedBox(height: 8),
                 Text(
                   scanState == 'entry'
-                      ? 'İlk okutma giriş olarak kaydedilir.'
-                      : scanState == 'waiting_exit'
-                          ? 'Girişiniz kayıtlı. Giriş saatinizden itibaren tanımlı tolerans süresi dolmadan çıkış yapılamaz. Tolerans dolduktan sonra vardiya bitimine kadar tekrar okutursanız E / Erken Çıkış, vardiya bitişinde veya sonrasında normal çıkış kaydedilir.'
+                      ? 'İlk QR normalde giriştir. Çıkış saatinde giriş kaydınız yoksa eksik giriş onay talebi oluşturulur.'
+                      : scanState == 'correction_pending'
+                          ? 'Eksik giriş kaydınız yönetici onayında. Gerçek okutma saatiniz saklandı.'
+                          : scanState == 'waiting_exit'
+                          ? 'Girişiniz kayıtlı. Yanlışlıkla tekrar okutma korunur; vardiyadan önce çıkış için açık onayınız istenir.'
                           : 'Bugünkü giriş ve çıkış kaydınız tamamlandı.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 10.5, color: MTheme.muted, height: 1.35),
@@ -390,7 +427,7 @@ class _EmployeePortalState extends State<EmployeePortalScreen> {
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Mobil personel kodunuzu yalnızca ilk cihaz eşleştirmesinde girersiniz. Uygulama daha sonra doğrudan bu personel ekranını açar.',
+                          'Cep telefonu numaranızla ilk cihaz eşleştirmesini yaparsınız. Uygulama sonraki açılışlarda oturumunuzu hatırlar.',
                           style: TextStyle(fontSize: 11),
                         ),
                       ),
